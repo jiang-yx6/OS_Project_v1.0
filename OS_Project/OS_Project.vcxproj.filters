@@ -21,9 +21,18 @@
     <ClCompile Include="process\process.cpp">
       <Filter>头文件</Filter>
     </ClCompile>
+    <ClCompile Include="log.cpp">
+      <Filter>头文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="process\process.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="log.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="state.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

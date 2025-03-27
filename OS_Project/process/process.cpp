@@ -5,8 +5,10 @@ int ProcessManager::createProcess(string name, int priority, int operaTime) {
 	PCB* newProcess = new PCB(newpid, name, priority, operaTime);
 	processMap[newpid] = newProcess;
 	readyQueue.push(newProcess);
+	logger->logProcessCreation(name, newpid, priority, operaTime);
 
 	if (processMap.size() == 1) { //第一个进程直接调度到运行状态
+		logger->logScheduling(name, newpid);
 		dispatcher();
 	}
 	return newpid;
@@ -32,23 +34,24 @@ void ProcessManager::dispatcher() {
 	runningProcess = readyQueue.top();
 	readyQueue.pop();
 	runningProcess->setState(RUNNING);
+	logger->logScheduling(runningProcess->getName(), runningProcess->getPid());
 
 	scheduleTimer->start(TIME_SLICE_MS);
 
-	cout << "Process " << runningProcess->getName()
-		<< " (PID: " << runningProcess->getPid()
-		<< ") started running." << endl;
-	scheduleTimer->start(TIME_SLICE_MS);
-
+	
 }
+
 void ProcessManager::timeSliceExpired() {
 	if (runningProcess) {
 		runningProcess->decrementRemainTime(); //减少剩余时间
 
+		logger->logTimeSlice(runningProcess->getName(),
+			runningProcess->getPid(),
+			runningProcess->getRemainTime());
+
 		if (runningProcess->isFinished()) {
-			cout << "Process " << runningProcess->getName()
-				<< "(PID: " << runningProcess->getPid()
-				<< ") completed" << endl;
+			logger->logProcessCompletion(runningProcess->getName(),
+				runningProcess->getPid());
 			scheduleTimer->stop();
 
 			terminateProcess(runningProcess->getPid());
@@ -56,15 +59,13 @@ void ProcessManager::timeSliceExpired() {
 			dispatcher();
 		}
 		else { //放回就绪队列
+
 			scheduleTimer->stop();
 
 			runningProcess->setState(READY);
-
+			
 			readyQueue.push(runningProcess); //重新放回优先级队列
 
-			cout << "Process " << runningProcess->getName()
-				<< " (PID: " << runningProcess->getPid()
-				<< ") time slice expired." << endl;
 			runningProcess = nullptr;
 
 			dispatcher();//调度算法来实现进程调度
@@ -72,3 +73,13 @@ void ProcessManager::timeSliceExpired() {
 	}
 }
 
+bool ProcessManager::checkAndHandleTimeSlice() {
+	{
+		if (scheduleTimer->isTimeSliceExpired()) {
+			scheduleTimer->resetTimeSliceFlag();
+			timeSliceExpired();
+			return true;
+		}
+		return false;
+	}
+}

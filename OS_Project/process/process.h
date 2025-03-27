@@ -9,8 +9,9 @@
 #include <thread>
 #include <chrono>
 #include <functional>
+#include "../log.h"
+#include "../state.h"
 using namespace std;
-typedef enum { READY, RUNNING, BLOCKED, OVER } ProcessState;
 
 class PCB {
 private:
@@ -43,8 +44,13 @@ public:
     string getName() const { return name; }
     ProcessState getState() const { return state; }
     int getPriority() const { return priority; }
+    int getRemainTime() const { return remainTime; }
 
-    void setState(ProcessState newState) { state = newState; }
+    void setState(ProcessState newState) { 
+        ProcessState oldState = state;
+        state = newState; 
+        Logger::getInstance()->logStateChange(name, pid, oldState, newState);
+    }
 
 
     void decrementRemainTime() { if (remainTime > 0) remainTime--; } //减少时间片长度的时间
@@ -55,11 +61,11 @@ public:
 class Timer {
 private:
     std::thread timer_thread;
-    function<void()> callback;
+    atomic<bool> time_slice_expired;  // 使用原子变量来保证线程安全
     bool running;
 
 public:
-    Timer() : running(false) {}
+    Timer() : running(false),time_slice_expired(false) {}
 
     ~Timer() {
         stop();
@@ -67,16 +73,18 @@ public:
 
     void start(int milliseconds) {
         // 先停止当前线程
+
         stop();
 
         // 然后启动新线程
         {
             running = true;
+            time_slice_expired = false;
             timer_thread = thread([this, milliseconds]() {
                 while (running) {
                     this_thread::sleep_for(chrono::milliseconds(milliseconds));
-                    if (running && callback) {
-                        callback();
+                    if (running) {
+                        time_slice_expired = true;
                     }
                 }
                 });
@@ -84,9 +92,7 @@ public:
     }
 
     void stop() {
-        {
-            running = false;
-        }
+        running = false;
 
         // 在锁之外join线程，避免死锁
         if (timer_thread.joinable()) {
@@ -94,8 +100,12 @@ public:
         }
     }
 
-    void setCallback(function<void()> cb) {
-        callback = cb;
+    bool isTimeSliceExpired() {
+        return time_slice_expired;
+    }
+
+    void resetTimeSliceFlag() {
+        time_slice_expired = false;
     }
 };
 
@@ -115,7 +125,7 @@ private:
     int timeSlice;
     const int TIME_SLICE_MS = 1000; //设置时间片1秒
     Timer* scheduleTimer;
-
+    Logger* logger;
 public:
     ProcessManager() {
         nextPid = 0;
@@ -123,11 +133,12 @@ public:
         scheduleTimer = new Timer();
         timeSlice = 1;
         //设置回调函数
-        scheduleTimer->setCallback([this]() {
-            this->timeSliceExpired();
-            });
+        logger = Logger::getInstance();
     }
-
+    bool hasProcesses() const {
+        return !processMap.empty() || runningProcess != nullptr;
+    }
+    bool checkAndHandleTimeSlice();
     int createProcess(string name, int priority, int operaTime);
     void terminateProcess(int pid); //终止终端
     void wakeupProcess(int pid); //唤醒终端
