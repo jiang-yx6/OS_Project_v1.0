@@ -7,7 +7,7 @@
 #include "process/process.h"
 #define TIME_QUANTUM 4
 
-void test() {
+void processTest() {
     ProcessManager pm;
 
     // 创建几个测试进程
@@ -23,6 +23,23 @@ void test() {
     // 让主程序运行一段时间以观察进程调度
 }
 int main() {
-    test();
+    bool cycleFlag = true;
+    while(cycleFlag){
+        cout <<
+            "选择测试内容：\n\
+        1:进程调度\n\
+        0:退出" << endl;
+        int input;
+        cin >> input;
+        switch (input)
+        {
+        case 1:
+            processTest();
+        case 0:
+            cycleFlag=false;
+        default:
+            break;
+        }
+    }
     return 0;
 }
