@@ -1,7 +1,30 @@
 #pragma once
 #include <iostream>
 #include <string>
+#include<fstream>
 using namespace std;
+
+/*一个目录块中0号FCB位置指向上一级文件，上一个块和下一个块（如果有的话）---标记是否已经使用：第一个bit为1代表已使用
+* 目录块：64字节为一个FCB块，留空一个FCB块的开头
+* 索引块：前二个字节空出
+* 文件块：前二个字节空出
+*/
+
+//每块4KB---可同时索引2008块，单文件最大约8MB
+
+/*
+* FCB结构：64字节
+* 创建标记 1bit---已创建为1
+* 类型  1bit----文件夹/文件
+* 创建者 （编号）4bit------用户添加编号，0~15
+* 属性 2bit------类型：只读，只写，保护，公有
+* 文件名 47字节------需要控制长度
+* 创建时间 6字节
+* 修改时间 6字节
+* 
+*/
+//目标块 2字节--------65535块，总大小为256MB
+//实际上读取不到就代表没有使用块
 
 class File
 {
@@ -15,6 +38,8 @@ private:
 	string command;//从命令中分割出的语句
 	string path = "现在的路径";//未确定类型
 
+	void loadPath();//加载目录（文件）
 	void commandChangePath();//更改目录命令
+	fstream ioFile;//文件流
 };
 

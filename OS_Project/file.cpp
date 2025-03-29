@@ -8,6 +8,7 @@ void File::fileControl()
 
 	bool cycleFlag = true;
 	cin.get();//清除主函数中未处理的换行符
+	loadPath();
 
 	while (cycleFlag) {
 		cout << "[" << path << "]>";
@@ -57,6 +58,17 @@ void File::findFirstCommand()
 	command = tmp;
 
 //	pos = input.find(" ");//未找到会返回-1
+}
+
+void File::loadPath()
+{
+	//文件命名为storage
+	ioFile.open("storage",ios::binary|ios::in|ios::out);
+	if (ioFile.is_open())
+	{
+		cout<<"文件打开成功" ;
+	}
+
 }
 
 void File::commandChangePath()
