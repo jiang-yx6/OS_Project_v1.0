@@ -5,7 +5,7 @@
 #include <thread>       // 为 this_thread 添加头文件
 #include <chrono>  
 #include "process/process.h"
-#include "memory.h"
+#include "file.h"
 #define TIME_QUANTUM 4
 
 void processTest() {
@@ -24,10 +24,10 @@ void processTest() {
     // 让主程序运行一段时间以观察进程调度
 }
 
-void memoryTest()
+void fileTest()
 {
-    Memory mc;
-    mc.memoryControl();
+    File fc;
+    fc.fileControl();
 }
 
 int main() {
@@ -36,7 +36,7 @@ int main() {
         cout <<
             "选择测试内容：\n\
         1:进程调度\n\
-        2:内存管理\n\
+        2:文件管理\n\
         0:退出" << endl;
         int input;
         cin >> input;
@@ -46,10 +46,10 @@ int main() {
             processTest();
             break;
         case 2:
-            memoryTest();
+            fileTest();
             break;
         case 0:
-            cycleFlag=false;
+            cycleFlag=false;//输入中文也会返回0
         default:
             break;
         }
