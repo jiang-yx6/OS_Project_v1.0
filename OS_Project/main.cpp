@@ -5,6 +5,7 @@
 #include <thread>       // 为 this_thread 添加头文件
 #include <chrono>  
 #include "process/process.h"
+#include "memory.h"
 #define TIME_QUANTUM 4
 
 void processTest() {
@@ -22,12 +23,20 @@ void processTest() {
     }
     // 让主程序运行一段时间以观察进程调度
 }
+
+void memoryTest()
+{
+    Memory mc;
+    mc.memoryControl();
+}
+
 int main() {
     bool cycleFlag = true;
     while(cycleFlag){
         cout <<
             "选择测试内容：\n\
         1:进程调度\n\
+        2:内存管理\n\
         0:退出" << endl;
         int input;
         cin >> input;
@@ -35,6 +44,10 @@ int main() {
         {
         case 1:
             processTest();
+            break;
+        case 2:
+            memoryTest();
+            break;
         case 0:
             cycleFlag=false;
         default:
