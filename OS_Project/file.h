@@ -2,7 +2,10 @@
 #include <iostream>
 #include <string>
 #include<fstream>
+#define CLOCK_SIZE 4096//适配不同页大小暂时不写
 using namespace std;
+
+//在文件中以00 00方式代表存储空间中数据
 
 /*一个目录块中0号FCB位置指向上一级文件，上一个块和下一个块（如果有的话）---标记是否已经使用：第一个bit为1代表已使用
 * 目录块：64字节为一个FCB块，留空一个FCB块的开头
@@ -41,5 +44,12 @@ private:
 	void loadPath();//加载目录（文件）
 	void commandChangePath();//更改目录命令
 	fstream ioFile;//文件流
+
+	void fileInitialize();//文件缺失时进行初始化
+	void addClock();//初始化一个新的块
+	void placeHold(int);//添加指定数目占位符
+	int memPos=0;//存储指针
+	void writeMem(int);//写入数据到当前位置
+	int readMem();//读取当前位置数据返回
 };
 

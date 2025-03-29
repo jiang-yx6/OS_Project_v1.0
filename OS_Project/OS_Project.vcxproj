@@ -127,14 +127,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="file.cpp" />
     <ClCompile Include="log.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="memory.cpp" />
     <ClCompile Include="process\process.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="file.h" />
     <ClInclude Include="log.h" />
-    <ClInclude Include="memory.h" />
     <ClInclude Include="process\process.h" />
     <ClInclude Include="state.h" />
   </ItemGroup>
