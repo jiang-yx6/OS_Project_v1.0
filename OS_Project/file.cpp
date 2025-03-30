@@ -31,7 +31,7 @@ void File::fileControl()
 			{
 				//commandShowPathFile();
 			}
-			if (command=="mkdir")
+			if (command=="mkdir")//后跟文件夹名称
 			{
 				commandCreatePath();
 				continue;
@@ -71,7 +71,7 @@ void File::loadPath()
 		ioFile.open("storage.txt",ios::out);//fstream需已只写模式创建文件
 		ioFile.close();
 		ioFile.open("storage.txt");
-		fileInitialize();
+		newBlock();
 		cout << "文件创建成功" << endl;
 		ioFile.close();//保存文件
 		ioFile.open("storage.txt");
@@ -92,20 +92,49 @@ void File::commandChangePath()
 
 void File::commandCreatePath()
 {
+	MyFCB tmp;
+	string strTmp;
+	command = "";
+	findFirstCommand();
+	if (command.size() > 49)
+	{
+		cout << "文件名长度过长" << endl;
+	}
+	for (list<MyFCB>::const_iterator it=FCBList.begin(); it != FCBList.end(); it++)
+	{
+		tmp=*it;
+		strTmp = "";
+		for (size_t i = 0; i < 49&& tmp.name[i]!=(char)0; i++)
+		{
+			strTmp += tmp.name[i];
+		}
+		if (strTmp==command)
+		{
+			cout << "该文件名已存在" << endl;
+			return;
+		}
+	}
+
+	FCBList.push_back(MyFCB(command,192));
+
+	writeAllFCB();
+
 }
 
-void File::fileInitialize()
-{
-	addBlock(0);
+//void File::fileInitialize()
+//{
+//	addBlock(0);
+//
+//	memPos = 1;
+//	writeMem(1);//标记0号块已使用
+//}
 
-	memPos = 1;
-	writeMem(1);//标记0号块已使用
-}
-
-void File::addBlock(int blockNum)
+void File::clearBlock(int blockNum)
 {
 	memPos = BLOCK_SIZE * blockNum;
 	placeHold(BLOCK_SIZE);
+	memPos = blockNum * BLOCK_SIZE+1;
+	writeMem(1);
 }
 
 void File::placeHold(int num)
@@ -117,10 +146,11 @@ void File::placeHold(int num)
 	}
 }
 
-void File::writeMem(int num)
+void File::writeMem(char ch)
 {
 	//0~255
 	//直观显示模拟内存中数据
+	unsigned char num = ch;
 	ioFile.seekp(memPos * 3);
 	int tmp1, tmp2;
 	tmp1 = num / 16;
@@ -155,6 +185,7 @@ void File::writeMem(int num)
 		num--;
 	}
 	ioFile.write(" ", 1);
+
 	//使用16进制ascii码查看器来查看内存内容
 	/*ioFile.seekp(memPos);
 	ioFile.put((char)num);*/
@@ -169,6 +200,7 @@ int File::readMem()
 	ioFile.seekg(memPos * 3);
 	char tmp[1];
 	int num=0;
+	tmp[0] = 0;
 	ioFile.read(tmp, 1);
 	while (tmp[0]!=' ') {
 		num *= 16;
@@ -192,10 +224,13 @@ int File::readMem()
 		case 'F':
 			num += 15;
 			break;
+		case 0:
+			return -1;
 		default:
 			num += (int)tmp[0] - 48;
 			break;
 		}
+		tmp[0] = 0;
 		ioFile.read(tmp, 1);
 	}
 	//使用16进制ascii码查看器来查看内存内容
@@ -224,9 +259,9 @@ void File::loadFCB(int blockNum)
 {
 	FCBList.clear();
 	MyFCB tmpFCB;
-	memPos = blockNum * BLOCK_SIZE + 2;
 	int tmp,nextBlock;
 	while(1){
+		memPos = blockNum * BLOCK_SIZE + 2;
 		nextBlock = readMem();
 		nextBlock *= 256;
 		nextBlock += readMem();
@@ -260,6 +295,93 @@ void File::loadFCB(int blockNum)
 		{
 			break;
 		}
+		blockNum = nextBlock;
 	}
 
+}
+
+void File::writeAllFCB()
+{
+	int block,nextBlock;
+	block=locateBlock();
+	memPos = block * BLOCK_SIZE+2;
+	nextBlock = readMem() * 256 + readMem();
+
+	clearBlock(block);
+	memPos = block * BLOCK_SIZE + 64;
+	for (list<MyFCB>::iterator it = FCBList.begin(); it !=FCBList.end() ; it++)
+	{
+		if (memPos==(block+1)*BLOCK_SIZE)//取巧写法
+		{
+			//进入下一块/创建新块
+			if (nextBlock!=0)
+			{
+				block = nextBlock;
+				memPos = block * BLOCK_SIZE + 2;
+				nextBlock = readMem() * 256 + readMem();
+				clearBlock(block);
+				memPos = block * BLOCK_SIZE + 64;
+			}
+			else
+			{
+				nextBlock = newBlock();
+				memPos = block * BLOCK_SIZE + 2;
+				writeMem(nextBlock / 256);
+				writeMem(nextBlock % 256);
+				block = nextBlock;
+				nextBlock = 0;
+				memPos = block * BLOCK_SIZE + 64;
+			}
+		}
+
+		writeFCB(it);
+	}
+
+	//判断原有块是否均已使用，未使用的删除
+	if (nextBlock!=0)
+	{
+		memPos = block * BLOCK_SIZE + 2;
+		writeMem(0);
+		writeMem(0);
+		while (nextBlock != 0)
+		{
+			block = nextBlock;
+			memPos = block * BLOCK_SIZE;
+			writeMem(0);
+			writeMem(0);
+			memPos = block * BLOCK_SIZE + 2;
+			nextBlock = readMem() * 256 + readMem();
+		}
+	}
+
+}
+
+int File::newBlock()
+{
+	int block = -1;
+	int flag=1;
+	//如果读取出界会返回-1
+	while (flag)
+	{
+		block++;
+		memPos = block * BLOCK_SIZE;
+		flag = readMem() * 256 + readMem();
+		if (flag<0) break;//即读取失败，创建新块---------读取出界后需重新打开文件
+	}
+	ioFile.close();
+	ioFile.open("storage.txt");
+	clearBlock(block);
+
+	return block;
+}
+
+void File::writeFCB(list<MyFCB>::iterator it)
+{
+	MyFCB tmp = *it;
+	writeMem(tmp.dataFlag);
+	for (size_t i = 0; i < 49; i++) writeMem(tmp.name[i]);
+	for (size_t i = 0; i < 6; i++) writeMem(tmp.createTime[i]);
+	for (size_t i = 0; i < 6; i++) writeMem(tmp.changeTime[i]);
+	writeMem(tmp.storageBlock / 256);
+	writeMem(tmp.storageBlock % 256);
 }

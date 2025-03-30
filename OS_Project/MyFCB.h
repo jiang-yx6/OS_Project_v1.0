@@ -1,4 +1,8 @@
 #pragma once
+#include <ctime>
+#include <string>
+using namespace std;
+
 class MyFCB
 {
 public:
@@ -9,5 +13,9 @@ public:
 	int storageBlock;
 
 	MyFCB();
+	MyFCB(string, char);
+	void operator=(const MyFCB&);
+	void flashTime();
+	void clear();
 };
 
