@@ -6,16 +6,17 @@ using namespace std;
 class MyFCB
 {
 public:
-	char dataFlag;
+	unsigned char dataFlag;
 	char name[49];
-	char createTime[6];
-	char changeTime[6];
-	int storageBlock;
+	unsigned char createTime[6];
+	unsigned char changeTime[6];
+	unsigned short int storageBlock;
 
 	MyFCB();
-	MyFCB(string, char);
+	MyFCB(string, int);
 	void operator=(const MyFCB&);
 	void flashTime();
+	string toTime(int);//为0输出changetime，其余输出createtime
 	void clear();
 };
 

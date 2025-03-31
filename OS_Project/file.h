@@ -40,6 +40,7 @@ using namespace std;
 class File
 {
 public:
+	File();
 	void fileControl();//控制界面
 
 private:
@@ -47,22 +48,24 @@ private:
 	string input;//输入的命令
 	string::iterator inputPos;//对输入命令的迭代器指针
 	string command;//从命令中分割出的语句
-	string path = "~";//未确定类型---~//fileName//file.txt
+	string path;//未确定类型---~//fileName//file.txt
 
-	list<MyFCB> FCBList;
+	list<MyFCB>* FCBList;
 	//bool commandEndFlag;//使用命令过程中终止命令----------------
-	void loadPath();//加载目录（文件）
+	void loadMainPath();//加载目录（文件）
 	void commandChangePath();//更改目录命令
+	void commandShowPathFile();//显示command下的目录中的文件----需确定指定的为文件夹
 	void commandCreatePath();//在当前目录下创建一个文件夹,仅创建并写入FCB头，不分配空间
 	fstream ioFile;//文件流
 
 	//void fileInitialize();//文件缺失时进行初始化
 	void clearBlock(int);//初始化一个新的块---------按照块号初始化,传入块号
 	void placeHold(int);//添加指定数目占位符
-	int memPos=0;//存储指针
+	int memPos;//存储指针
 	void writeMem(char);//写入数据到memPos当前位置
 	int readMem();//读取memPos当前位置数据返回,读取失败会返回-1
 
+	int currentBlock;//记录当前块
 	int locateBlock();//路径存储在command中，定位到路径对应的块，返回块的编号，定位失败返回-1
 	void loadFCB(int);//加载指定块和之后相关块中的所有FCB块
 	void writeAllFCB();//将FCB的修改写回到存储中

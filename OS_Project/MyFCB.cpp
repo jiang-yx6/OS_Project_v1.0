@@ -28,15 +28,35 @@ void MyFCB::flashTime()
 	this->changeTime[5] = (timeBuffer[14] - 48) * 10 + (timeBuffer[15] - 48);
 }
 
+string MyFCB::toTime(int type)
+{
+	unsigned char* aim;
+	if (type)
+	{
+		aim = this->createTime;
+	}
+	else
+	{
+		aim = this->changeTime;
+	}
+	string time;
+	time = to_string(aim[0] * 256 + aim[1])+"-"
+		+to_string(aim[2]) + "-"
+		+ to_string(aim[3]) + " "
+		+ to_string(aim[4]) + ":"
+		+ to_string(aim[5]);
+	return time;
+}
+
 void MyFCB::clear()
 {
 	for (size_t i = 0; i < 49; i++)this->name[i] = '\0';
 	this->storageBlock = 0;
 }
 
-MyFCB::MyFCB(string name, char flags)
+MyFCB::MyFCB(string name, int flags)
 {
-	this->dataFlag = flags;
+	this->dataFlag = (unsigned char)flags;
 	for (size_t i = 0; i < 49; i++)this->name[i] = 0;
 	for (size_t i = 0; i < name.size(); i++)this->name[i] = name[i];
 	flashTime();
