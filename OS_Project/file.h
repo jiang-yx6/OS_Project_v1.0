@@ -71,5 +71,6 @@ private:
 	void writeAllFCB();//将FCB的修改写回到存储中
 	int newBlock();//查找一个未使用的块，将其初始化：0占位，设1代表已使用
 	void writeFCB(list<MyFCB>::iterator);//写入一个FCB块到memPos位置
+	//以选定条件定位已加载FCB块，返回该块在list的位置
 };
 

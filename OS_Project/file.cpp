@@ -94,9 +94,64 @@ void File::loadMainPath()
 
 void File::commandChangePath()
 {
-	/*command = "";
+	int block, pos;
+	MyFCB* tmp;
+	string name;
 	findFirstCommand();
-	locateBlock();*/
+	if (command.empty())
+	{
+		cout << "缺少参数" << endl;
+		return;
+	}
+	block = locateBlock();
+	if (block == -1)
+	{
+		cout << "路径不正确" << endl;
+		return;
+	}
+	if (block || command == "~")
+	{
+		loadFCB(block);
+		if (strcmp(command.substr(0, command.find('\\')).c_str(), "~")!=0)
+		{
+			command = path + "\\" + command;
+		}
+		path = command;
+	}
+	else
+	{
+		if (!(command[0] == '~' && command[1] == '\\'))
+		{
+			command = path + "\\" + command;
+		}
+		pos = command.rfind('\\');
+		path = command.substr(0, pos);
+		name = command.substr(pos + 1);
+		command = "";
+		loadFCB(locateBlock());
+		for (list<MyFCB>::iterator it = FCBList->begin(); it != FCBList->end(); it++)
+		{
+			tmp = &*it;
+			if (strcmp(tmp->name,name.c_str())==0)
+			{
+				if (tmp->dataFlag&(unsigned char)64)
+				{
+					tmp->storageBlock = newBlock();
+					writeAllFCB();
+					loadFCB(tmp->storageBlock);
+					path = path + "\\" + name;
+				}
+				else
+				{
+					cout << "目标不是一个文件夹" << endl;
+					return;
+				}
+				break;
+			}
+
+		}
+	}
+
 }
 
 void File::commandShowPathFile()
@@ -135,7 +190,6 @@ void File::commandShowPathFile()
 void File::commandCreatePath()
 {
 	MyFCB tmp;
-	command = "";
 	findFirstCommand();
 	if (command.size() > 49)
 	{
@@ -300,14 +354,14 @@ int File::locateBlock()
 	FCBList = new list<MyFCB>;
 
 	cutEnd = tmpCommand.find('\\', cutPos);
-	fileName = tmpCommand.substr(cutPos,cutEnd);//第二个参数为-1则会读到结尾（无效参数？）
+	fileName = tmpCommand.substr(cutPos,cutEnd-cutPos);//第二个参数为-1则会读到结尾（无效参数？）
 	cutPos = cutEnd+1;
 	if (fileName=="~")
 	{
 		//表明从根目录起
 		blockNum = 0;
 		cutEnd = tmpCommand.find('\\', cutPos);
-		fileName = tmpCommand.substr(cutPos,cutEnd);
+		fileName = tmpCommand.substr(cutPos,cutEnd-cutPos);
 		cutPos = cutEnd + 1;
 	}
 
@@ -332,7 +386,7 @@ int File::locateBlock()
 			break;
 		}
 		cutEnd = tmpCommand.find('\\', cutPos);
-		fileName = tmpCommand.substr(cutPos, cutEnd);
+		fileName = tmpCommand.substr(cutPos, cutEnd-cutPos);
 		cutPos = cutEnd + 1;
 		if (!((unsigned char)tmpFCB.dataFlag & 64))//目标不为文件夹
 		{
@@ -398,36 +452,35 @@ void File::loadFCB(int blockNum)
 
 void File::writeAllFCB()
 {
-	int block,nextBlock;
+	int nextBlock;
 	command = "";
-	block=locateBlock();
-	memPos = block * BLOCK_SIZE+2;
+	memPos = currentBlock * BLOCK_SIZE+2;
 	nextBlock = readMem() * 256 + readMem();
 
-	clearBlock(block);
-	memPos = block * BLOCK_SIZE + 64;
+	clearBlock(currentBlock);
+	memPos = currentBlock * BLOCK_SIZE + 64;
 	for (list<MyFCB>::iterator it = FCBList->begin(); it !=FCBList->end() ; it++)
 	{
-		if (memPos==(block+1)*BLOCK_SIZE)//取巧写法
+		if (memPos==(currentBlock +1)*BLOCK_SIZE)//取巧写法
 		{
 			//进入下一块/创建新块
 			if (nextBlock!=0)
 			{
-				block = nextBlock;
-				memPos = block * BLOCK_SIZE + 2;
+				currentBlock = nextBlock;
+				memPos = currentBlock * BLOCK_SIZE + 2;
 				nextBlock = readMem() * 256 + readMem();
-				clearBlock(block);
-				memPos = block * BLOCK_SIZE + 64;
+				clearBlock(currentBlock);
+				memPos = currentBlock * BLOCK_SIZE + 64;
 			}
 			else
 			{
 				nextBlock = newBlock();
-				memPos = block * BLOCK_SIZE + 2;
+				memPos = currentBlock * BLOCK_SIZE + 2;
 				writeMem(nextBlock / 256);
 				writeMem(nextBlock % 256);
-				block = nextBlock;
+				currentBlock = nextBlock;
 				nextBlock = 0;
-				memPos = block * BLOCK_SIZE + 64;
+				memPos = currentBlock * BLOCK_SIZE + 64;
 			}
 		}
 
@@ -437,16 +490,16 @@ void File::writeAllFCB()
 	//判断原有块是否均已使用，未使用的删除
 	if (nextBlock!=0)
 	{
-		memPos = block * BLOCK_SIZE + 2;
+		memPos = currentBlock * BLOCK_SIZE + 2;
 		writeMem(0);
 		writeMem(0);
 		while (nextBlock != 0)
 		{
-			block = nextBlock;
-			memPos = block * BLOCK_SIZE;
+			currentBlock = nextBlock;
+			memPos = currentBlock * BLOCK_SIZE;
 			writeMem(0);
 			writeMem(0);
-			memPos = block * BLOCK_SIZE + 2;
+			memPos = currentBlock * BLOCK_SIZE + 2;
 			nextBlock = readMem() * 256 + readMem();
 		}
 	}
