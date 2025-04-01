@@ -26,7 +26,7 @@ using namespace std;
 /*
 * FCB结构：64字节
 * 创建标记 1bit---已创建为1
-* 类型  1bit----文件夹/文件
+* 类型  1bit----文件夹/文件----为1则为文件夹
 * 属性 2bit------类型：只读，只写，保护，公有：10，01，00，11---默认为保护
 * 创建者 （编号）4bit------用户添加编号，0~15,0为管理权限
 * 文件名 49字节------需要控制长度
@@ -44,7 +44,7 @@ public:
 	void fileControl();//控制界面
 
 private:
-	void findFirstCommand();//查找返回字符串中下一个空格前的字符串，返回到command中，如asd 1234 eee 返回asd到command中
+	void findFirstCommand();//查找返回字符串中下一个空格前的字符串，返回到command中，如asd 1234 eee 返回asd到command中，未找到会返回空串
 	string input;//输入的命令
 	string::iterator inputPos;//对输入命令的迭代器指针
 	string command;//从命令中分割出的语句
@@ -58,19 +58,23 @@ private:
 	void commandCreatePath();//在当前目录下创建一个文件夹,仅创建并写入FCB头，不分配空间
 	fstream ioFile;//文件流
 
-	//void fileInitialize();//文件缺失时进行初始化
 	void clearBlock(int);//初始化一个新的块---------按照块号初始化,传入块号
-	void placeHold(int);//添加指定数目占位符
 	int memPos;//存储指针
-	void writeMem(char);//写入数据到memPos当前位置
+	void writeMem(unsigned char);//写入数据到memPos当前位置
 	int readMem();//读取memPos当前位置数据返回,读取失败会返回-1
 
 	int currentBlock;//记录当前块
-	int locateBlock();//路径存储在command中，定位到路径对应的块，返回块的编号，定位失败返回-1
-	void loadFCB(int);//加载指定块和之后相关块中的所有FCB块
+	pair<int, int> locateBlock();//路径存储在command中，定位到路径对应的块，返回块的编号和块的类型：0为索引块，1为目录块，定位失败返回-1，若定位的文件未分配空间则为其分配空间块
+	void loadFCB(int);//加载指定块和之后相关块中的所有FCB块---------------------------!!!path和currentBlock可能会不对应!!!
 	void writeAllFCB();//将FCB的修改写回到存储中
-	int newBlock();//查找一个未使用的块，将其初始化：0占位，设1代表已使用
+	int newBlock();//查找一个未使用的块，将其初始化：0占位，设1代表已使用，返回块号
 	void writeFCB(list<MyFCB>::iterator);//写入一个FCB块到memPos位置
 	//以选定条件定位已加载FCB块，返回该块在list的位置
+	string findFileName();//查找command中的第一个文件名，会修改command中的内容
+	//int blockType;//记录当前加载的block块的类别，1：目录块，2：
+	void deleteBlock(int);// 与newBlock对应
+	void setBlockStage(int,bool);//更改块的使用状态
+	void setNextBlock(int,int);//更改当前块指向的下一块（必须为目录块）
+	int getNextBlock(int);//用于协助遍历顺序的块
 };
 
