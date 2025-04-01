@@ -6,6 +6,7 @@
 #include <chrono>  
 #include "process/process.h"
 #include "file.h"
+#include"MemoryManager.h"
 #define TIME_QUANTUM 4
 
 void processTest() {
@@ -35,9 +36,10 @@ int main() {
     while(cycleFlag){
         cout <<
             "选择测试内容：\n\
-1:进程调度\n\
-2:文件管理\n\
-0:退出" << endl;
+        1:进程调度\n\
+        2:文件管理\n\
+        3:内存管理\n\
+        0:退出" << endl;
         int input;
         cin >> input;
         switch (input)
@@ -47,6 +49,9 @@ int main() {
             break;
         case 2:
             fileTest();
+            break;
+        case 3:
+            Memorytest();
             break;
         case 0:
             cycleFlag=false;//输入中文也会返回0
