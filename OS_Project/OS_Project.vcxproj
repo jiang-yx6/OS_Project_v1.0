@@ -130,12 +130,14 @@
     <ClCompile Include="file.cpp" />
     <ClCompile Include="log.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="MemoryManager.cpp" />
     <ClCompile Include="MyFCB.cpp" />
     <ClCompile Include="process\process.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="file.h" />
     <ClInclude Include="log.h" />
+    <ClInclude Include="MemoryManager.h" />
     <ClInclude Include="MyFCB.h" />
     <ClInclude Include="process\process.h" />
     <ClInclude Include="state.h" />
