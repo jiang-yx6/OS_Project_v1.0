@@ -3,11 +3,188 @@
 File::File()
 {
 	currentBlock = -1;
-	memPos = 0;
+	storagePos = 0;
 	command = "";//-----------------------------?
 	path = "";
 	FCBList = new list<MyFCB>;
 }
+inline char* File::readBlock(int blockNum)
+{
+	char* block = (char*)malloc(sizeof(BLOCK_SIZE));
+	storagePos = blockNum * BLOCK_SIZE;
+	for (size_t i = 0; i < BLOCK_SIZE; i++) block[i] =(unsigned char) readStorage();
+	return block;
+}
+inline void File::writeBlock(char* block, int blockNum)
+{
+	storagePos = blockNum * BLOCK_SIZE;
+	for (size_t i = 0; i < BLOCK_SIZE; i++) writeStorage(block[i]);
+}
+inline int File::newBlock()
+{
+	int block = -1;
+	int flag = 1;
+	//如果读取出界会返回-1
+	while (flag)
+	{
+		block++;
+		storagePos = block * BLOCK_SIZE + 1;
+		flag = readStorage();//为0则为未使用块
+		if (flag < 0) break;//即读取失败，创建新块---------读取出界后需重新打开文件
+	}
+	ioFile.close();
+	ioFile.open(FILE_NAME);
+	clearBlock(block);
+
+	return block;
+}
+inline void File::clearBlock(int blockNum)
+{
+	deleteBlock(blockNum);
+	setBlockStage(blockNum, true);
+}
+inline void File::deleteBlock(int block)
+{
+	int num = BLOCK_SIZE;
+	storagePos = block * BLOCK_SIZE;
+	while (num > 0)
+	{
+		writeStorage(0);
+		num--;
+	}
+}
+inline void File::deleteAllNextBlock(int nowBlock)
+{
+	int nextBlock;
+
+	nextBlock = getNextBlock(nowBlock);
+	if (nextBlock != 0)
+	{
+		setNextBlock(nowBlock, 0);
+		while (nextBlock != 0)
+		{
+			nowBlock = nextBlock;
+			setBlockStage(nowBlock, false);
+			nextBlock = getNextBlock(nowBlock);
+			deleteBlock(nowBlock);
+		}
+	}
+}
+inline void File::setBlockStage(int block, bool type)
+{
+	storagePos = block * BLOCK_SIZE + 1;
+	writeStorage(type ? 1 : 0);
+}
+inline bool File::getBlockStage(int block)
+{
+	storagePos = block * BLOCK_SIZE + 1;
+	return readStorage() ? true : false;
+}
+inline void File::setNextBlock(int block, int num)
+{
+	storagePos = block * BLOCK_SIZE + 2;
+	writeStorage(num / 256);
+	writeStorage(num % 256);
+}
+inline int File::getNextBlock(int block)
+{
+	storagePos = block * BLOCK_SIZE + 2;
+	return readStorage() * 256 + readStorage();
+}
+
+inline void File::writeStorage(unsigned char num)
+{
+	//直观显示模拟内存中数据
+	ioFile.seekp(storagePos * 3);
+	int tmp1, tmp2;
+	tmp1 = num / 16;
+	tmp2 = num % 16;
+	num = 2;
+	while (num) {
+		switch (tmp1)
+		{
+		case 10:
+			ioFile.write("A", 1);
+			break;
+		case 11:
+			ioFile.write("B", 1);
+			break;
+		case 12:
+			ioFile.write("C", 1);
+			break;
+		case 13:
+			ioFile.write("D", 1);
+			break;
+		case 14:
+			ioFile.write("E", 1);
+			break;
+		case 15:
+			ioFile.write("F", 1);
+			break;
+		default:
+			ioFile.write(to_string(tmp1).c_str(), 1);
+			break;
+		}
+		tmp1 = tmp2;
+		num--;
+	}
+	ioFile.write(" ", 1);
+
+	//使用16进制ascii码查看器来查看内存内容
+	/*ioFile.seekp(storagePos);
+	ioFile.put(num);*/
+
+	storagePos++;
+}
+inline int File::readStorage()
+{
+	int num = -1;
+	//直观显示模拟内存中数据
+	ioFile.seekg(storagePos * 3);
+	char tmp[1];
+	tmp[0] = 0;
+	num = 0;
+	ioFile.read(tmp, 1);
+	while (tmp[0] != ' ') {
+		num *= 16;
+		switch (tmp[0])
+		{
+		case 'A':
+			num += 10;
+			break;
+		case 'B':
+			num += 11;
+			break;
+		case 'C':
+			num += 12;
+			break;
+		case 'D':
+			num += 13;
+			break;
+		case 'E':
+			num += 14;
+			break;
+		case 'F':
+			num += 15;
+			break;
+		case 0:
+			return -1;
+		default:
+			num += (int)tmp[0] - 48;
+			break;
+		}
+		tmp[0] = 0;
+		ioFile.read(tmp, 1);
+	}
+	//使用16进制ascii码查看器来查看内存内容
+	/*ioFile.seekg(storagePos);
+	num = (unsigned char)ioFile.get();*/
+
+	storagePos++;
+	return num;
+}
+
+
 void File::fileControl()
 {
 	cin.get();//清除主函数中未处理的换行符
@@ -22,7 +199,7 @@ void File::fileControl()
 2:ls 路径  用法同上，但路径可置空，代表查找当前目录\n\
 3:mkdir 文件名  在当前目录下创建文件夹\n\
 4:rmdir用法同上\n\
-注意文件路径使用\\"<< endl;
+注意文件路径使用\\" << endl;
 
 	while (cycleFlag) {
 		cout << "[" << path << "]>";
@@ -33,22 +210,22 @@ void File::fileControl()
 
 		if (!command.empty())
 		{
-			if (command=="cd")//路径命令，~号代表基地址，使用\分隔文件
+			if (command == "cd")//路径命令，~号代表基地址，使用\分隔文件
 			{
 				commandChangePath();
 				continue;
 			}
-			if (command=="ls")//后跟文件夹名称或路径或置空
+			if (command == "ls")//后跟文件夹名称或路径或置空
 			{
 				commandShowPathFile();
 				continue;
 			}
-			if (command=="mkdir")//后跟文件夹名称
+			if (command == "mkdir")//后跟文件夹名称
 			{
 				commandCreatePath();
 				continue;
 			}
-			if (command=="rmdir")
+			if (command == "rmdir")
 			{
 				commandDeletePath();
 			}
@@ -59,7 +236,52 @@ void File::fileControl()
 			}
 		}
 	}
-	
+
+}
+void File::loadMainPath()
+{
+	//文件命名为storage
+	ioFile.open(FILE_NAME);
+	if (!ioFile.is_open())//无文件，重新创建
+	{
+		ioFile.open(FILE_NAME, ios::out);//fstream需已只写模式创建文件
+		ioFile.close();
+		ioFile.open(FILE_NAME);
+		newBlock();//要求
+		cout << "文件创建成功" << endl;
+		ioFile.close();//保存文件
+		ioFile.open(FILE_NAME);
+	}
+
+	path = "~";
+	currentBlock = 0;
+	loadFCB(0);
+
+	//char reader[1024];//seek越界不会提示，如果读取出界则在reader中原有的数据不会改变
+}
+void File::findFirstCommand()
+{
+	string tmp = "";
+	while (inputPos != input.end() && *inputPos == ' ') inputPos++;//跳过空格
+	for (; inputPos != input.end() && *inputPos != ' '; inputPos++) tmp += *inputPos;
+	command = tmp;
+}
+string File::findFileName()
+{
+	string output;
+	int pos;
+	pos = command.find('\\');
+	if (pos == -1)
+	{
+		output = command;
+		command = "";
+	}
+	else
+	{
+		output = command.substr(0, pos);//第二个参数为负数则会读到结尾（无效参数？）
+		command = command.substr(pos + 1);
+	}
+	return output;
 }
 
 void File::commandChangePath()
@@ -111,7 +333,7 @@ void File::commandShowPathFile()
 		{
 			tmp = *it;
 			cout << "   ";
-			cout.width(49);
+			cout.width(size(tmp.name));
 			cout.setf(ios::left);
 			cout << tmp.name;
 			cout << "                     ";
@@ -125,7 +347,7 @@ void File::commandCreatePath()
 {
 	MyFCB tmp;
 	findFirstCommand();
-	if (command.size() > 49)
+	if (command.size() > size(tmp.name))
 	{
 		cout << "文件名长度过长" << endl;
 	}
@@ -212,34 +434,6 @@ void File::commandDeletePath()
 	loadFCB(currentBlock);
 }
 
-void File::loadMainPath()
-{
-	//文件命名为storage
-	ioFile.open("storage.txt");
-	if (!ioFile.is_open())//无文件，重新创建
-	{
-		ioFile.open("storage.txt", ios::out);//fstream需已只写模式创建文件
-		ioFile.close();
-		ioFile.open("storage.txt");
-		newBlock();//要求
-		cout << "文件创建成功" << endl;
-		ioFile.close();//保存文件
-		ioFile.open("storage.txt");
-	}
-
-	path = "~";
-	currentBlock = 0;
-	loadFCB(0);
-
-	//char reader[1024];//seek越界不会提示，如果读取出界则在reader中原有的数据不会改变
-}
-void File::findFirstCommand()
-{
-	string tmp = "";
-	while (inputPos!=input.end()&&*inputPos==' ') inputPos++;//跳过空格
-	for (;inputPos != input.end()&&*inputPos!=' '; inputPos++) tmp += *inputPos;
-	command = tmp;
-}
 pair<int, int> File::locateBlock()
 {
 	string fileName, nameCommand;
@@ -292,115 +486,6 @@ pair<int, int> File::locateBlock()
 	command = nameCommand;
 	return pair<int, int>(blockNum, type);
 }
-string File::findFileName()
-{
-	string output;
-	int pos;
-	pos = command.find('\\');
-	if (pos == -1)
-	{
-		output = command;
-		command = "";
-	}
-	else
-	{
-		output = command.substr(0, pos);//第二个参数为负数则会读到结尾（无效参数？）
-		command = command.substr(pos + 1);
-	}
-	return output;
-}
-
-void File::writeMem(unsigned char num)
-{
-	//直观显示模拟内存中数据
-	ioFile.seekp(memPos * 3);
-	int tmp1, tmp2;
-	tmp1 = num / 16;
-	tmp2 = num % 16;
-	num = 2;
-	while(num){
-		switch (tmp1)
-		{
-		case 10:
-			ioFile.write("A", 1);
-			break;
-		case 11:
-			ioFile.write("B", 1);
-			break;
-		case 12:
-			ioFile.write("C", 1);
-			break;
-		case 13:
-			ioFile.write("D", 1);
-			break;
-		case 14:
-			ioFile.write("E", 1);
-			break;
-		case 15:
-			ioFile.write("F", 1);
-			break;
-		default:
-			ioFile.write(to_string(tmp1).c_str(), 1);
-			break;
-		}
-		tmp1 = tmp2;
-		num--;
-	}
-	ioFile.write(" ", 1);
-
-	//使用16进制ascii码查看器来查看内存内容
-	/*ioFile.seekp(memPos);
-	ioFile.put(num);*/
-
-	memPos++;
-}
-int File::readMem()
-{
-	//直观显示模拟内存中数据
-	ioFile.seekg(memPos * 3);
-	char tmp[1];
-	int num=0;
-	tmp[0] = 0;
-	ioFile.read(tmp, 1);
-	while (tmp[0]!=' ') {
-		num *= 16;
-		switch (tmp[0])
-		{
-		case 'A':
-			num += 10;
-			break;
-		case 'B':
-			num += 11;
-			break;
-		case 'C':
-			num += 12;
-			break;
-		case 'D':
-			num += 13;
-			break;
-		case 'E':
-			num += 14;
-			break;
-		case 'F':
-			num += 15;
-			break;
-		case 0:
-			return -1;
-		default:
-			num += (int)tmp[0] - 48;
-			break;
-		}
-		tmp[0] = 0;
-		ioFile.read(tmp, 1);
-	}
-	//使用16进制ascii码查看器来查看内存内容
-	/*ioFile.seekg(memPos);
-	num = (int)ioFile.get();*/
-
-	memPos++;
-	return num;
-}
-
 void File::loadFCB(int blockNum)
 {
 	FCBList->clear();
@@ -410,13 +495,13 @@ void File::loadFCB(int blockNum)
 		nextBlock = getNextBlock(blockNum);
 		for (size_t i = 1; i < BLOCK_SIZE / 64; i++)
 		{
-			tmp = readMem();
+			tmp = readStorage();
 			if ((tmp & 128) == 0) continue;
 			tmpFCB.dataFlag = tmp;
-			for (size_t i = 0; i < 49; i++) tmpFCB.name[i] = (char)readMem();
-			for (size_t i = 0; i < 6; i++) tmpFCB.createTime[i] = (unsigned char)readMem();
-			for (size_t i = 0; i < 6; i++) tmpFCB.changeTime[i] = (unsigned char)readMem();
-			tmpFCB.storageBlock = readMem() * 256 + readMem();
+			for (size_t i = 0; i < 49; i++) tmpFCB.name[i] = (char)readStorage();
+			for (size_t i = 0; i < 6; i++) tmpFCB.createTime[i] = (unsigned char)readStorage();
+			for (size_t i = 0; i < 6; i++) tmpFCB.changeTime[i] = (unsigned char)readStorage();
+			tmpFCB.storageBlock = readStorage() * 256 + readStorage();
 			FCBList->push_back(tmpFCB);
 		}
 		if (nextBlock == 0) break;
@@ -430,11 +515,11 @@ void File::writeAllFCB()
 	nowBlock = currentBlock;
 	nextBlock = getNextBlock(nowBlock);
 	clearBlock(nowBlock);
-	memPos = nowBlock * BLOCK_SIZE + 64;
+	storagePos = nowBlock * BLOCK_SIZE + 64;
 
 	for (list<MyFCB>::iterator it = FCBList->begin(); it !=FCBList->end() ; it++)
 	{
-		if (memPos==(nowBlock +1)*BLOCK_SIZE)//取巧写法
+		if (storagePos==(nowBlock +1)*BLOCK_SIZE)//取巧写法
 		{
 			//进入下一块/创建新块
 			if (nextBlock==0)
@@ -445,7 +530,7 @@ void File::writeAllFCB()
 			nowBlock = nextBlock;
 			nextBlock = getNextBlock(nowBlock);
 			clearBlock(nowBlock);
-			memPos = nowBlock * BLOCK_SIZE + 64;
+			storagePos = nowBlock * BLOCK_SIZE + 64;
 		}
 		writeFCB(it);
 	}
@@ -456,77 +541,10 @@ void File::writeAllFCB()
 void File::writeFCB(list<MyFCB>::iterator it)
 {
 	MyFCB tmp = *it;
-	writeMem(tmp.dataFlag);
-	for (size_t i = 0; i < 49; i++) writeMem(tmp.name[i]);
-	for (size_t i = 0; i < 6; i++) writeMem(tmp.createTime[i]);
-	for (size_t i = 0; i < 6; i++) writeMem(tmp.changeTime[i]);
-	writeMem(tmp.storageBlock / 256);
-	writeMem(tmp.storageBlock % 256);
-}
-
-int File::newBlock()
-{
-	int block = -1;
-	int flag = 1;
-	//如果读取出界会返回-1
-	while (flag)
-	{
-		block++;
-		memPos = block * BLOCK_SIZE;
-		flag = readMem() * 256 + readMem();//为0则为未使用块
-		if (flag < 0) break;//即读取失败，创建新块---------读取出界后需重新打开文件
-	}
-	ioFile.close();
-	ioFile.open("storage.txt");
-	clearBlock(block);
-
-	return block;
-}
-inline void File::clearBlock(int blockNum)
-{
-	deleteBlock(blockNum);
-	setBlockStage(blockNum, true);
-}
-inline void File::deleteBlock(int block)
-{
-	int num = BLOCK_SIZE;
-	memPos = block * BLOCK_SIZE;
-	while (num > 0)
-	{
-		writeMem(0);
-		num--;
-	}
-}
-inline void File::deleteAllNextBlock(int nowBlock)
-{
-	int nextBlock;
-
-	nextBlock = getNextBlock(nowBlock);
-	if (nextBlock != 0)
-	{
-		setNextBlock(nowBlock, 0);
-		while (nextBlock != 0)
-		{
-			nowBlock = nextBlock;
-			setBlockStage(nowBlock, false);
-			nextBlock = getNextBlock(nowBlock);
-			deleteBlock(nowBlock);
-		}
-	}
-}
-inline void File::setBlockStage(int block,bool type)
-{
-	memPos = block * BLOCK_SIZE + 1;
-	writeMem(type ? 1 : 0);
-}
-inline void File::setNextBlock(int block,int num)
-{
-	memPos = block * BLOCK_SIZE + 2;
-	writeMem(num / 256);
-	writeMem(num % 256);
-}
-inline int File::getNextBlock(int block)
-{
-	memPos = block * BLOCK_SIZE + 2;
-	return readMem() * 256 + readMem();
+	writeStorage(tmp.dataFlag);
+	for (size_t i = 0; i < 49; i++) writeStorage(tmp.name[i]);
+	for (size_t i = 0; i < 6; i++) writeStorage(tmp.createTime[i]);
+	for (size_t i = 0; i < 6; i++) writeStorage(tmp.changeTime[i]);
+	writeStorage(tmp.storageBlock / 256);
+	writeStorage(tmp.storageBlock % 256);
 }
