@@ -184,7 +184,6 @@ inline int File::readStorage()
 	return num;
 }
 
-
 void File::fileControl()
 {
 	cin.get();//清除主函数中未处理的换行符

@@ -7,6 +7,7 @@
 #include "process/process.h"
 #include "file.h"
 #include"MemoryManager.h"
+#include"OSManager.h"
 #define TIME_QUANTUM 4
 
 void processTest() {
@@ -27,12 +28,16 @@ void processTest() {
 
 void fileTest()
 {
-    File fc;
-    fc.fileControl();
+    OSManager os;
+    os.file.fileControl();
+    
+    /*File fc;
+    fc.fileControl();*/
 }
 
 int main() {
     bool cycleFlag = true;
+
     while(cycleFlag){
         cout <<
             "Ñ¡Ôñ²âÊÔÄÚÈÝ£º\n\

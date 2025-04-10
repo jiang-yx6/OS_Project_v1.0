@@ -132,6 +132,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MemoryManager.cpp" />
     <ClCompile Include="MyFCB.cpp" />
+    <ClCompile Include="OSManager.cpp" />
     <ClCompile Include="process\process.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -139,6 +140,7 @@
     <ClInclude Include="log.h" />
     <ClInclude Include="MemoryManager.h" />
     <ClInclude Include="MyFCB.h" />
+    <ClInclude Include="OSManager.h" />
     <ClInclude Include="process\process.h" />
     <ClInclude Include="state.h" />
   </ItemGroup>

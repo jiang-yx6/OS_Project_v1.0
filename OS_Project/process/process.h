@@ -63,12 +63,17 @@ private:
     std::thread timer_thread;
     atomic<bool> time_slice_expired;  // 使用原子变量来保证线程安全
     bool running;
+    function<void()>callback;
 
 public:
     Timer() : running(false),time_slice_expired(false) {}
 
     ~Timer() {
         stop();
+    }
+
+    void setCallBack(function<void()>cb) {
+        callback = cb;
     }
 
     void start(int milliseconds) {
@@ -82,6 +87,9 @@ public:
             time_slice_expired = false;
             timer_thread = thread([this, milliseconds]() {
                 while (running) {
+                    if (callback) {
+                        callback();
+                    }
                     this_thread::sleep_for(chrono::milliseconds(milliseconds));
                     if (running) {
                         time_slice_expired = true;
@@ -137,6 +145,10 @@ public:
     }
     bool hasProcesses() const {
         return !processMap.empty() || runningProcess != nullptr;
+    }
+
+    Timer& getTimer() {
+        return *scheduleTimer;
     }
     bool checkAndHandleTimeSlice();
     int createProcess(string name, int priority, int operaTime);

@@ -44,46 +44,75 @@ class File
 {
 public:
 	File();
-	void fileControl();//控制界面
+	//控制界面
+	void fileControl();
+	//读取指定块并返回,不应该会读到错误的块，调用者记得释放内存
+	char* readBlock(int);
+	//写入到指定块
+	void writeBlock(char*, int);
+	//查找一个未使用的块，将其初始化：0占位，设1代表已使用，返回块号
+	int newBlock();
+	//初始化一个新的块---------按照块号初始化,传入块号
+	void clearBlock(int);	
+	// 与newBlock对应
+	void deleteBlock(int);
+	//删除当前块之后所有连续的块，若传入0则跳过
+	void deleteAllNextBlock(int);
+	//更改块的使用状态
+	void setBlockStage(int, bool);
+	//获取块的使用状态
+	bool getBlockStage(int);
+	//更改当前块指向的下一块（必须为目录块）
+	void setNextBlock(int, int);
+	//用于协助遍历顺序的块
+	int getNextBlock(int);
 
-	char* readBlock(int);//读取指定块并返回,不应该会读到错误的块，调用者记得释放内存
-	void writeBlock(char*, int);//写入到指定块
-	int newBlock();//查找一个未使用的块，将其初始化：0占位，设1代表已使用，返回块号
-	void clearBlock(int);//初始化一个新的块---------按照块号初始化,传入块号	
-	void deleteBlock(int);// 与newBlock对应
-	void deleteAllNextBlock(int);//删除当前块之后所有连续的块，若传入0则跳过
-	void setBlockStage(int, bool);//更改块的使用状态
-	bool getBlockStage(int);//获取块的使用状态
-	void setNextBlock(int, int);//更改当前块指向的下一块（必须为目录块）
-	int getNextBlock(int);//用于协助遍历顺序的块
+	//更改目录命令
+	void commandChangePath();
 
 private:
-	void writeStorage(unsigned char);//写入数据到storagePos当前位置，storagePos加一
-	int readStorage();//读取storagePos当前位置数据返回,读取失败会返回-1，storagePos加一
-
-	string::iterator inputPos;//对输入命令的迭代器指针
-	string input;//输入的命令
-	string command;//从命令中分割出的语句
-	string path;//未确定类型---~//fileName//file.txt
+	//写入数据到storagePos当前位置，storagePos加一
+	void writeStorage(unsigned char);
+	//读取storagePos当前位置数据返回,读取失败会返回-1，storagePos加一
+	int readStorage();
+	//对输入命令的迭代器指针
+	string::iterator inputPos;
+	//输入的命令
+	string input;
+	//从命令中分割出的语句
+	string command;
+	//未确定类型---~//fileName//file.txt
+	string path;
 	list<MyFCB>* FCBList;
-	int currentBlock;//记录当前块
-	int storagePos;//存储指针
-	fstream ioFile;//文件流
-	string userPath;//记录当前用户的主路径
+	//记录当前块
+	int currentBlock;
+	//存储指针
+	int storagePos;
+	//文件流
+	fstream ioFile;
+	//记录当前用户的主路径
+	string userPath;
+	//加载主目录（文件）------------------------分用户待适配
+	void loadMainPath();
+	//查找返回字符串中下一个空格前的字符串，返回到command中，未找到会返回空串
+	void findFirstCommand();
+	//查找command中的第一个文件名------------------------！！！会修改command中的内容！！！
+	string findFileName();
 
-	void loadMainPath();//加载主目录（文件）------------------------分用户待适配
-	void findFirstCommand();//查找返回字符串中下一个空格前的字符串，返回到command中，未找到会返回空串
-	string findFileName();//查找command中的第一个文件名------------------------！！！会修改command中的内容！！！
-
-	void commandChangePath();//更改目录命令
-	void commandShowPathFile();//显示command下的目录中的文件，置空代表为当前文件路径
-	void commandCreatePath();//在当前目录下创建一个文件夹,仅创建并写入FCB头，不分配空间
-	void commandDeletePath();//删除指定的目录，该目录必须为空目录
-
-	pair<int, int> locateBlock();//路径存储在command中，定位到路径对应的块，返回块的编号和块的类型：0为索引块，1为目录块，定位失败返回-1，若定位的文件未分配空间会为其分配
-	void loadFCB(int);//加载指定块和之后相关块中的所有FCB块-----------------调用了redMem，待修改
-	void writeAllFCB();//将FCB的修改写回到存储中，路径为path
-	void writeFCB(list<MyFCB>::iterator);//写入一个FCB块到storagePos位置--------------调用了writeMem，待修改
+	//显示command下的目录中的文件，置空代表为当前文件路径
+	void commandShowPathFile();
+	//在当前目录下创建一个文件夹,仅创建并写入FCB头，不分配空间
+	void commandCreatePath();
+	//删除指定的目录，该目录必须为空目录
+	void commandDeletePath();
+	//路径存储在command中，定位到路径对应的块，返回块的编号和块的类型：0为索引块，1为目录块，定位失败返回-1，若定位的文件未分配空间会为其分配
+	pair<int, int> locateBlock();
+	//加载指定块和之后相关块中的所有FCB块-----------------调用了redMem，待修改
+	void loadFCB(int);
+	//将FCB的修改写回到存储中，路径为path
+	void writeAllFCB();
+	//写入一个FCB块到storagePos位置--------------调用了writeMem，待修改
+	void writeFCB(list<MyFCB>::iterator);
 
 	//添加一个readFCB与writeFCB对应
 	//以选定条件定位已加载FCB块，返回该块在list的位置
