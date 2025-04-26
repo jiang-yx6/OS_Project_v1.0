@@ -11,7 +11,7 @@ public:
 		auto& timer = pm.getTimer();
 		timer.setCallBack([this]() {
 			file.commandChangePath();
-			});
+		});
 	}
 };
 

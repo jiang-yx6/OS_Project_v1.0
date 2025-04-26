@@ -21,6 +21,8 @@ private:
     int priority;
     int operaTime; //进程执行总时间
     int remainTime;
+    std::function<void()> task;
+
     /*int createdTime;
     int startedTime;
     int deleteTime;
@@ -38,6 +40,11 @@ public:
         priority = pri;
         operaTime = opTime;
         remainTime = opTime;
+        
+    }
+
+    void registerFunc(std::function<void()> func) {
+        task = std::move(func);
     }
 
     int getPid() const { return pid; }
@@ -73,7 +80,7 @@ public:
     }
 
     void setCallBack(function<void()>cb) {
-        callback = cb;
+        callback = std::move(cb);
     }
 
     void start(int milliseconds) {
@@ -134,6 +141,7 @@ private:
     const int TIME_SLICE_MS = 1000; //设置时间片1秒
     Timer* scheduleTimer;
     Logger* logger;
+
 public:
     ProcessManager() {
         nextPid = 0;
@@ -143,6 +151,7 @@ public:
         //设置回调函数
         logger = Logger::getInstance();
     }
+
     bool hasProcesses() const {
         return !processMap.empty() || runningProcess != nullptr;
     }
@@ -151,7 +160,7 @@ public:
         return *scheduleTimer;
     }
     bool checkAndHandleTimeSlice();
-    int createProcess(string name, int priority, int operaTime);
+    int createProcess(string name, int priority, int operaTime, std::function<void()> func);
     void terminateProcess(int pid); //终止终端
     void wakeupProcess(int pid); //唤醒终端
     void blockProcess(int pid); //阻塞终端

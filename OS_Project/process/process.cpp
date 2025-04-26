@@ -1,8 +1,10 @@
 #include"process.h"
 
-int ProcessManager::createProcess(string name, int priority, int operaTime) {
+int ProcessManager::createProcess(string name, int priority, int operaTime, std::function<void()> func) {
 	int newpid = nextPid++;
 	PCB* newProcess = new PCB(newpid, name, priority, operaTime);
+	scheduleTimer->setCallBack(func);
+
 	processMap[newpid] = newProcess;
 	readyQueue.push(newProcess);
 	logger->logProcessCreation(name, newpid, priority, operaTime);

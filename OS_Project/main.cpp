@@ -15,9 +15,9 @@ void processTest() {
     ProcessManager pm;
 
     // 创建几个测试进程
-    pm.createProcess("Process1", 3, 5);  // 优先级1，需要执行5秒
-    pm.createProcess("Process2", 2, 3);  // 优先级2，需要执行3秒
-    pm.createProcess("Process3", 1, 4);  // 优先级3，需要执行4秒
+    pm.createProcess("Process1", 3, 5, [] {cout << "Process1 hhh" << endl; });  // 优先级1，需要执行5秒
+    pm.createProcess("Process2", 2, 3, [] {cout << "Process2 hhh" << endl; });  // 优先级2，需要执行3秒
+    pm.createProcess("Process3", 1, 4, [] {cout << "Process3 hhh" << endl; });  // 优先级3，需要执行4秒
     while (pm.hasProcesses()) {
 
         pm.checkAndHandleTimeSlice();
@@ -30,8 +30,11 @@ void processTest() {
 void fileTest()
 {
     OSManager os;
-    os.file.fileControl();
-    
+    while (true) {
+        os.file.fileControl2();
+    }
+    /*os.file.fileControl();*/
+    //pm.createProcess("Process1", 3, 5);
     /*File fc;
     fc.fileControl();*/
 }
@@ -58,6 +61,7 @@ void MemoryManagerTest() {
 
     return;
 }
+
 int main() {
     bool cycleFlag = true;
 
@@ -89,3 +93,5 @@ int main() {
     }
     return 0;
 }
+
+
