@@ -19,7 +19,6 @@ void processTest(SchedulePolicy policy) {
     pm.createProcess("Process1", 3, 5, [] {cout << "Process1 hhh" << endl; });  // 优先级1，需要执行5秒
     pm.createProcess("Process2", 2, 3, [] {cout << "Process2 hhh" << endl; });  // 优先级2，需要执行3秒
     pm.createProcess("Process3", 1, 4, [] {cout << "Process3 hhh" << endl; });  // 优先级3，需要执行4秒
-    while (pm.hasProcesses()) {
 
     while (pm.hasProcesses()) {
         pm.checkAndHandleTimeSlice();
@@ -63,65 +62,69 @@ void MemoryManagerTest() {
     return;
 }
 
+//int main() {
+//    bool cycleFlag = true;
+//
+//    while (cycleFlag) {
+//        cout <<
+//            "选择测试内容：\n\
+//        1:进程调度\n\
+//        2:文件管理\n\
+//        3:内存管理\n\
+//        0:退出" << endl;
+//        int input;
+//        cin >> input;
+//        switch (input)
+//        {
+//        case 1: {
+//            // 扩展调度算法选择菜单
+//            cout << "选择调度算法：\n\
+//            1: 优先级调度\n\
+//            2: 短作业优先（SJF）\n\
+//            3: 先来先服务（FCFS）\n\
+//            4: 时间片轮转（Round Robin）" << endl;
+//            int alg;
+//            cin >> alg;
+//
+//            SchedulePolicy policy;
+//            switch (alg) {
+//            case 1:
+//                policy = SchedulePolicy::PRIORITY;
+//                break;
+//            case 2:
+//                policy = SchedulePolicy::SJF;
+//                break;
+//            case 3:
+//                policy = SchedulePolicy::FCFS;
+//                break;
+//            case 4:
+//                policy = SchedulePolicy::RR;
+//                break;
+//            default:
+//                cout << "无效的选择，默认使用优先级调度。" << endl;
+//                policy = SchedulePolicy::PRIORITY;
+//                break;
+//            }
+//            processTest(policy);  // 传入选择的调度策略
+//            break;
+//        }
+//        case 2:
+//            fileTest();
+//            break;
+//        case 3:
+//            MemoryManagerTest();
+//            break;
+//        case 0:
+//            cycleFlag = false;//输入中文也会返回0
+//        default:
+//            break;
+//        }
+//    }
+//    return 0;
+//}
+
 int main() {
-    bool cycleFlag = true;
-
-    while (cycleFlag) {
-        cout <<
-            "选择测试内容：\n\
-        1:进程调度\n\
-        2:文件管理\n\
-        3:内存管理\n\
-        0:退出" << endl;
-        int input;
-        cin >> input;
-        switch (input)
-        {
-        case 1: {
-            // 扩展调度算法选择菜单
-            cout << "选择调度算法：\n\
-            1: 优先级调度\n\
-            2: 短作业优先（SJF）\n\
-            3: 先来先服务（FCFS）\n\
-            4: 时间片轮转（Round Robin）" << endl;
-            int alg;
-            cin >> alg;
-
-            SchedulePolicy policy;
-            switch (alg) {
-            case 1:
-                policy = SchedulePolicy::PRIORITY;
-                break;
-            case 2:
-                policy = SchedulePolicy::SJF;
-                break;
-            case 3:
-                policy = SchedulePolicy::FCFS;
-                break;
-            case 4:
-                policy = SchedulePolicy::RR;
-                break;
-            default:
-                cout << "无效的选择，默认使用优先级调度。" << endl;
-                policy = SchedulePolicy::PRIORITY;
-                break;
-            }
-            processTest(policy);  // 传入选择的调度策略
-            break;
-        }
-        case 2:
-            fileTest();
-            break;
-        case 3:
-            MemoryManagerTest();
-            break;
-        case 0:
-            cycleFlag = false;//输入中文也会返回0
-        default:
-            break;
-        }
-    }
+    OSManager* os = new OSManager();
+    os->mainControl();
     return 0;
 }
-
-

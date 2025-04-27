@@ -72,7 +72,7 @@ public:
 	//更改目录命令
 	void commandChangePath();
 
-private:
+public:
 	//写入数据到storagePos当前位置，storagePos加一
 	void writeStorage(unsigned char);
 	//读取storagePos当前位置数据返回,读取失败会返回-1，storagePos加一
