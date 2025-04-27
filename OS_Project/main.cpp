@@ -19,7 +19,6 @@ void processTest(SchedulePolicy policy) {
     pm.createProcess("Process1", 3, 5, [] {cout << "Process1 hhh" << endl; });  // 优先级1，需要执行5秒
     pm.createProcess("Process2", 2, 3, [] {cout << "Process2 hhh" << endl; });  // 优先级2，需要执行3秒
     pm.createProcess("Process3", 1, 4, [] {cout << "Process3 hhh" << endl; });  // 优先级3，需要执行4秒
-    while (pm.hasProcesses()) {
 
     while (pm.hasProcesses()) {
         pm.checkAndHandleTimeSlice();
@@ -39,27 +38,9 @@ void fileTest()
     /*File fc;
     fc.fileControl();*/
 }
-void MemoryManagerTest() {
-    MemoryManager manager(MemoryManager::ReplacementAlgorithm::FIFO);
-
-    try {
-        // 尝试获取逻辑块号 0 的数据，偏移量 10
-        char data = manager.getData(0, 10);
-        std::cout << "Data at logical block 0, offset 10: " << data << "\n";
-    }
-    catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << "\n";
-    }
-
-    // 打印内存状态
-    manager.printMemoryState();
-
-    // 释放虚拟页号 0
-    manager.freeMemory(0);
-
-    // 再次打印内存状态
-    manager.printMemoryState();
-
+void memoryTest() {
+    MemoryManager mm;
+    mm.MemoryManagerTest();
     return;
 }
 
@@ -113,7 +94,7 @@ int main() {
             fileTest();
             break;
         case 3:
-            MemoryManagerTest();
+            memoryTest();
             break;
         case 0:
             cycleFlag = false;//输入中文也会返回0

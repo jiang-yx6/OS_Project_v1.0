@@ -1,86 +1,74 @@
-//#ifndef MEMORY_MANAGER_H
-//#define MEMORY_MANAGER_H
-//
-//#include <vector>
-//#include <mutex>
-//#include <random>
-//using namespace std;
-//class MemoryManager {
-//public:
-//    enum class AllocationMethod {
-//        FirstFit,
-//        BestFit
-//    };
-//    enum class Replacement {
-//        LRU,
-//        Random,
-//        FIFO
-//    };
-//
-//private:
-//    struct Block {
-//        int start;   // 起始地址（单位：页）
-//        int size;    // 大小（单位：页）
-//        bool isFree; // 是否空闲
-//    };
-//    vector<Block> memory; // 模拟内存段
-//    AllocationMethod method;   // 内存分配方法
-//
-//    mutex memMutex;       // 保护内存操作的互斥锁
-//    const int pageSize = 4096; // 页面大小（1KB）
-//
-//public:
-//    MemoryManager(int totalPages, AllocationMethod method);
-//    ~MemoryManager();
-//
-//    // 分配内存
-//    bool allocate(int pages);
-//
-//    // 释放内存
-//    void deallocate(int startPage);
-//
-//    // 打印内存状态到终端
-//    void printMemoryState() const;
-//
-//private:
-//    // 首次适应算法
-//    int firstFit(int pages);
-//
-//    // 最佳适应算法
-//    int bestFit(int pages);
-//
-//    // 分割内存块
-//    void splitBlock(int index, int pages);
-//
-//    // 合并相邻空闲块
-//    void mergeFreeBlocks();
-//
-//    // 随机释放一块已分配的内存
-//    bool randomlyDeallocate();
-//};
-//
-//// 测试函数声明
-//void Memorytest();
-//
-//#endif // MEMORY_MANAGER_H
-#ifndef MEMORY_MANAGER_H
-#define MEMORY_MANAGER_H
+#ifndef MEMORYMANAGER_H
+#define MEMORYMANAGER_H
 
 #include <iostream>
-#include <map>
-#include <vector>
+#include <unordered_map>
 #include <deque>
-#include "file.h"
+#include <vector>
+#include <list>
+#include <cstring>
 
 #define MEMORY_BLOCKS 16
 #define BLOCK_SIZE 4096
 
 class MemoryManager {
 public:
-    enum class ReplacementAlgorithm { FIFO, LRU, Random };
+    // 页面置换算法枚举
+    enum class ReplacementAlgorithm {
+        FIFO,   // 先进先出
+        LRU,    // 最近最少使用
+        Random  // 随机置换
+    };
 
-    MemoryManager(ReplacementAlgorithm algorithm);
+    // 内存分配策略枚举
+    enum class AllocationStrategy {
+        FirstFit,  // 首次适应
+        BestFit,   // 最佳适应
+        WorstFit,  // 最差适应
+        NextFit    // 下次适应
+    };
+
+    // 构造函数，指定页面置换算法
+    MemoryManager(ReplacementAlgorithm algorithm = ReplacementAlgorithm::FIFO);
+
+    // 析构函数
     ~MemoryManager();
+
+    // 分配一个物理块给虚拟页
+    bool allocateMemory(int virtualPageNumber);
+
+    // 释放分配给虚拟页的内存
+    void freeMemory(int virtualPageNumber);
+    //用于与文件管理对接
+    // 获取指定逻辑块号和偏移量的数据
+    char getData(int logicalBlockNumber, int offset);
+
+    // 设置页面替换算法
+    void setReplacementAlgorithm(ReplacementAlgorithm algorithm);
+
+    // 设置内存分配策略
+    void setAllocationStrategy(AllocationStrategy strategy) {
+        allocationStrategy = strategy;
+        lastAllocatedBlock = -1;  // 重置最后分配的块索引
+    }
+
+    // 打印当前内存状态
+    void printMemoryState() const;
+
+    // 打印内存使用统计信息
+    void printMemoryStatistics() const;
+
+    // 内存碎片整理功能
+    void defragmentMemory();
+    // 内存管理器测试函数
+    void MemoryManagerTest();
+private:
+    // 内存物理块结构
+    struct MemoryBlock {
+        bool isAllocated;            // 是否已分配
+        int virtualPageNumber;       // 对应的虚拟页号，-1表示未分配
+        char data[BLOCK_SIZE];       // 块的实际数据
+    };
 
     // 分配一个物理块
     int allocatePhysicalBlock();
@@ -88,48 +76,50 @@ public:
     // 释放一个物理块
     void freePhysicalBlock(int physicalBlockNumber);
 
-    // 页面置换算法
+    // 页面置换
     void replacePage();
 
-    // 分配内存给虚拟页号
-    bool allocateMemory(int virtualPageNumber);
-
-    // 释放内存
-    void freeMemory(int virtualPageNumber);
-
-    // 获取指定逻辑块号和偏移量的数据
-    char getData(int logicalBlockNumber, int offset);
-
-    // 打印内存状态
-    void printMemoryState() const;
-
-    // 设置调度算法
-    void setReplacementAlgorithm(ReplacementAlgorithm algorithm);
-
-private:
-    struct MemoryBlock {
-        bool isAllocated;
-        int virtualPageNumber;
-        char data[BLOCK_SIZE];
-    };
-
+    // 当前使用的页面置换算法
     ReplacementAlgorithm replacementAlgorithm;
+
+    // 当前使用的内存分配策略
+    AllocationStrategy allocationStrategy = AllocationStrategy::FirstFit;
+
+    // 最后分配的块索引，用于NextFit策略
+    int lastAllocatedBlock = -1;
+
+    // 内存块数组
     std::vector<MemoryBlock> memory;
-    std::map<int, int> pageTable; // 虚拟页号 -> 物理块号
-    std::deque<int> fifoQueue;    // FIFO 队列
-    std::vector<int> lruList;     // LRU 列表
 
-    // 模拟从逻辑块读取数据
-    char* readBlock(int virtualPageNumber) {
-        static char buffer[BLOCK_SIZE];
-        std::fill(buffer, buffer + BLOCK_SIZE, 'A' + (virtualPageNumber % 26)); // 填充模拟数据
-        return buffer;
-    }
+    // 页表，从虚拟页号映射到物理块号
+    std::unordered_map<int, int> pageTable;
 
-    // 模拟将数据写回逻辑块
-    void writeBlock(const char* data, int virtualPageNumber) {
-        // 模拟写回操作
-        std::cout << "Writing data back to logical block " << virtualPageNumber << "\n";
-    }
+    // FIFO算法的队列
+    std::deque<int> fifoQueue;
+
+    // LRU算法的列表
+    std::list<int> lruList;
+
+    // 使用FirstFit策略分配块
+    int allocateWithFirstFit();
+
+    // 使用BestFit策略分配块
+    int allocateWithBestFit();
+
+    // 使用WorstFit策略分配块
+    int allocateWithWorstFit();
+
+    // 使用NextFit策略分配块
+    int allocateWithNextFit();
+
+    // 从磁盘读取块数据
+    char* readBlock(int blockNumber);
+
+    // 将块数据写回磁盘
+    void writeBlock(const char* data, int blockNumber);
+
+
 };
-#endif // MEMORY_MANAGER_H
+
+
+#endif // MEMORYMANAGER_H
