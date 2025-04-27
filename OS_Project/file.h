@@ -5,6 +5,7 @@
 #include <list>
 #include "MyFCB.h"
 #include "User.h"
+#include "process/process.h"
 #define BLOCK_SIZE 4096//适配不同页大小暂时不写
 #define FCB_SIZE 64//FCB块大小
 #define BLOCK_ADD_LEN 2//用于定位块的字节数
@@ -57,8 +58,6 @@ public:
 	File();
 	//控制界面
 	void fileControl();
-
-	void fileControl2();
 	//读取指定块并返回,不应该会读到错误的块，调用者记得释放内存
 	char* readBlock(int);
 	//写入到指定块
@@ -83,7 +82,7 @@ public:
 	//更改目录命令
 	void commandChangePath();
 
-private:
+
 	string userName;
 	int userId;
 	int getNewId();
@@ -137,8 +136,6 @@ private:
 	void writeAllFCB();
 	//写入一个FCB块到storagePos位置--------------调用了writeMem，待修改
 	void writeFCB(list<MyFCB>::iterator);
-
-	void changeFCB(int, int, string);
 
 	MyFCB* locateNowFCB();
 

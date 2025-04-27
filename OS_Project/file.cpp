@@ -183,41 +183,6 @@ inline int File::readStorage()
 	return num;
 }
 
-void File::fileControl2()
-{
-	cout << "[" << path << "]>";
-	getline(cin, input);//会正常读取中文字符，处理时可能会出现问题
-
-	inputPos = input.begin();
-	findFirstCommand();
-
-	if (!command.empty())
-	{
-		if (command == "cd")//路径命令，~号代表基地址，使用\分隔文件
-		{
-			commandChangePath();
-		}
-		if (command == "ls")//后跟文件夹名称或路径或置空
-		{
-			commandShowPathFile();
-		}
-		if (command == "mkdir")//后跟文件夹名称
-		{
-			commandCreatePath();
-		}
-		if (command == "rmdir")
-		{
-			commandDeletePath();
-		}
-		if (command == "exit")//退出程序
-		{
-			ioFile.close();
-			return;
-		}
-	}
-}
-
-
 void File::fileControl()
 {
 	system("cls");
@@ -311,7 +276,8 @@ void File::loginIn()
 1:登录\n\
 2:创建新用户\n\
 3:删除用户" << endl;
-	int input=0,id;
+	int id;
+	char input;
 	string name, password;
 	User user;
 	bool endFlag = false;
@@ -321,7 +287,7 @@ void File::loginIn()
 		cin >> input;
 		switch (input)
 		{
-		case 1:
+		case '1':
 			cout << "请输入用户名：";
 			cin >> name;
 			id = checkUserName(name);
@@ -343,7 +309,7 @@ void File::loginIn()
 			}
 			cout << "密码错误" << endl;
 			break;
-		case 2:
+		case '2':
 			id = getNewId();
 			if (id==-1)
 			{
@@ -361,7 +327,7 @@ void File::loginIn()
 			cin >> password;
 			writeUser(User(id, name, password));
 			break;
-		case 3:
+		case '3':
 			cout << "请输入用户名：";
 			cin >> name;
 			id = checkUserName(name);
@@ -383,6 +349,7 @@ void File::loginIn()
 			break;
 		default:
 			cout << "请按要求输入" << endl;
+			getline(cin, name);
 			break;
 		}
 	}
@@ -807,10 +774,6 @@ void File::writeFCB(list<MyFCB>::iterator it)
 	for (size_t i = 0; i < 6; i++) writeStorage(tmp.changeTime[i]);
 	writeStorage(tmp.storageBlock / 256);
 	writeStorage(tmp.storageBlock % 256);
-}
-void File::changeFCB(int type, int property, string name)
-{
-
 }
 MyFCB* File::locateNowFCB()
 {
