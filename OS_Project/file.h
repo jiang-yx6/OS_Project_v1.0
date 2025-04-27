@@ -4,6 +4,7 @@
 #include<fstream>
 #include <list>
 #include "MyFCB.h"
+#include "User.h"
 #define BLOCK_SIZE 4096//适配不同页大小暂时不写
 #define FCB_SIZE 64//FCB块大小
 #define BLOCK_ADD_LEN 2//用于定位块的字节数
@@ -11,6 +12,16 @@
 using namespace std;
 
 //目前无缓冲区
+
+/*登录：读取
+* 用户条目：（仅0号块）
+* 条目有效：4bit 1为有效
+* 用户id：4bit 0~16 0号为管理
+* 用户名：最大32
+* 密码：最大31
+* 共64
+*/
+
 
 //在文件中以00 00方式代表存储空间中数据
 
@@ -30,7 +41,7 @@ using namespace std;
 * FCB结构：64字节
 * 创建标记 1bit---已创建为1
 * 类型  1bit----文件夹/文件----为1则为文件夹
-* 属性 2bit------类型：只读，只写，保护，公有：10，01，00，11---默认为保护
+* 属性 2bit------类型：只读，只写，保护，公有：10，01，00，11---默认为保护(对于文件有效，文件夹各用户均可开启)
 * 创建者 （编号）4bit------用户添加编号，0~15,0为管理权限
 * 文件名 49字节------需要控制长度
 * 创建时间 6字节
@@ -71,6 +82,15 @@ public:
 	void commandChangePath();
 
 private:
+	string userName;
+	int userId;
+	int getNewId();
+	void deleteUser(int);
+	int checkUserName(string);
+	char* readUser(int);
+	void writeUser(User);
+	void newNameBlock();
+	void loginIn();
 	//写入数据到storagePos当前位置，storagePos加一
 	void writeStorage(unsigned char);
 	//读取storagePos当前位置数据返回,读取失败会返回-1，storagePos加一
@@ -103,8 +123,10 @@ private:
 	void commandShowPathFile();
 	//在当前目录下创建一个文件夹,仅创建并写入FCB头，不分配空间
 	void commandCreatePath();
+	void commandCreateFile();
 	//删除指定的目录，该目录必须为空目录
 	void commandDeletePath();
+	void commandChangePermission();
 	//路径存储在command中，定位到路径对应的块，返回块的编号和块的类型：0为索引块，1为目录块，定位失败返回-1，若定位的文件未分配空间会为其分配
 	pair<int, int> locateBlock();
 	//加载指定块和之后相关块中的所有FCB块-----------------调用了redMem，待修改
@@ -113,6 +135,10 @@ private:
 	void writeAllFCB();
 	//写入一个FCB块到storagePos位置--------------调用了writeMem，待修改
 	void writeFCB(list<MyFCB>::iterator);
+
+	void changeFCB(int, int, string);
+
+	MyFCB* locateNowFCB();
 
 	//添加一个readFCB与writeFCB对应
 	//以选定条件定位已加载FCB块，返回该块在list的位置
