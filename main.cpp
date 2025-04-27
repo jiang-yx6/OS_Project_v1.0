@@ -30,9 +30,9 @@ void processTest(SchedulePolicy policy) {
 void fileTest()
 {
     OSManager os;
-    File file;
-    os.pm.createProcess("Process1", 3, 5, [&os] {os.file.fileControl(); });
-    //file.fileControl();
+    while (true) {
+        os.file.fileControl2();
+    }
     /*os.file.fileControl();*/
     //pm.createProcess("Process1", 3, 5);
     /*File fc;
