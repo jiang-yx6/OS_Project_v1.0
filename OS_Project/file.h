@@ -57,6 +57,8 @@ public:
 	File();
 	//控制界面
 	void fileControl();
+
+	void fileControl2();
 	//读取指定块并返回,不应该会读到错误的块，调用者记得释放内存
 	char* readBlock(int);
 	//写入到指定块
