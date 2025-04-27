@@ -184,6 +184,41 @@ inline int File::readStorage()
 	return num;
 }
 
+void File::fileControl2()
+{
+	cout << "[" << path << "]>";
+	getline(cin, input);//会正常读取中文字符，处理时可能会出现问题
+
+	inputPos = input.begin();
+	findFirstCommand();
+
+	if (!command.empty())
+	{
+		if (command == "cd")//路径命令，~号代表基地址，使用\分隔文件
+		{
+			commandChangePath();
+		}
+		if (command == "ls")//后跟文件夹名称或路径或置空
+		{
+			commandShowPathFile();
+		}
+		if (command == "mkdir")//后跟文件夹名称
+		{
+			commandCreatePath();
+		}
+		if (command == "rmdir")
+		{
+			commandDeletePath();
+		}
+		if (command == "exit")//退出程序
+		{
+			ioFile.close();
+			return;
+		}
+	}
+}
+
+
 void File::fileControl()
 {
 	cin.get();//清除主函数中未处理的换行符

@@ -4,7 +4,6 @@
 #include<iostream>
 #include<unordered_map>
 #include<queue>
-#include<deque>
 #include<vector>
 #include<string>
 #include <thread>
@@ -24,9 +23,19 @@ private:
     int pid;
     string name;
     ProcessState state;
-    int priority; //优先级
+    int priority;
     int operaTime; //进程执行总时间
     int remainTime;
+    std::function<void()> task;
+
+    /*int createdTime;
+    int startedTime;
+    int deleteTime;
+    size_t memoryStart;
+    size_t memorySize;
+    vector<int> allocatedResources;
+    vector<int> requestedResources;
+    vector<int> openFiles;*/
 
 public:
     PCB(int id, string pname, int pri, int opTime) {
@@ -36,6 +45,11 @@ public:
         priority = pri;
         operaTime = opTime;
         remainTime = opTime;
+        
+    }
+
+    void registerFunc(std::function<void()> func) {
+        task = std::move(func);
     }
 
     int getPid() const { return pid; }
@@ -44,9 +58,9 @@ public:
     int getPriority() const { return priority; }
     int getRemainTime() const { return remainTime; }
 
-    void setState(ProcessState newState) {
+    void setState(ProcessState newState) { 
         ProcessState oldState = state;
-        state = newState;
+        state = newState; 
         Logger::getInstance()->logStateChange(name, pid, oldState, newState);
     }
 
@@ -63,14 +77,14 @@ private:
     function<void()>callback;
 
 public:
-    Timer() : running(false), time_slice_expired(false) {}
+    Timer() : running(false),time_slice_expired(false) {}
 
     ~Timer() {
         stop();
     }
 
     void setCallBack(function<void()>cb) {
-        callback = cb;
+        callback = std::move(cb);
     }
 
     void start(int milliseconds) {
@@ -152,6 +166,7 @@ public:
         //// 设置定时器的回调函数
         //scheduleTimer->setCallBack([this]() { this->timeSliceExpired(); });
     }
+
     bool hasProcesses() const {
         return !processMap.empty() || runningProcess != nullptr;
     }
@@ -160,7 +175,7 @@ public:
         return *scheduleTimer;
     }
     bool checkAndHandleTimeSlice();
-    int createProcess(string name, int priority, int operaTime);
+    int createProcess(string name, int priority, int operaTime, std::function<void()> func);
     void terminateProcess(int pid); //终止终端
     void wakeupProcess(int pid); //唤醒终端
     void blockProcess(int pid); //阻塞终端

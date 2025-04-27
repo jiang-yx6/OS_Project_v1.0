@@ -1,7 +1,10 @@
 #include"process.h"
-int ProcessManager::createProcess(string name, int priority, int operaTime) {
-	int newpid = nextPid++; // 为新进程分配 PID
-	PCB* newProcess = new PCB(newpid, name, priority, operaTime); // 创建新的进程控制块（PCB）
+
+int ProcessManager::createProcess(string name, int priority, int operaTime, std::function<void()> func) {
+	int newpid = nextPid++;
+	PCB* newProcess = new PCB(newpid, name, priority, operaTime);
+	scheduleTimer->setCallBack(func);
+
 	processMap[newpid] = newProcess;
 	// 根据调度策略，将新进程添加到相应的队列
 	addToReadyQueue(newProcess);
