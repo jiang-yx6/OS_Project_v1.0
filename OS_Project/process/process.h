@@ -4,6 +4,7 @@
 #include<iostream>
 #include<unordered_map>
 #include<queue>
+#include<deque>
 #include<vector>
 #include<string>
 #include <thread>
@@ -12,23 +13,20 @@
 #include "../log.h"
 #include "../state.h"
 using namespace std;
-
+enum class SchedulePolicy {
+    PRIORITY,
+    SJF, // 短作业优先
+    FCFS, //先来先服务
+    RR //时间片轮转
+};
 class PCB {
 private:
     int pid;
     string name;
     ProcessState state;
-    int priority;
+    int priority; //优先级
     int operaTime; //进程执行总时间
     int remainTime;
-    /*int createdTime;
-    int startedTime;
-    int deleteTime;
-    size_t memoryStart;
-    size_t memorySize;
-    vector<int> allocatedResources;
-    vector<int> requestedResources;
-    vector<int> openFiles;*/
 
 public:
     PCB(int id, string pname, int pri, int opTime) {
@@ -46,9 +44,9 @@ public:
     int getPriority() const { return priority; }
     int getRemainTime() const { return remainTime; }
 
-    void setState(ProcessState newState) { 
+    void setState(ProcessState newState) {
         ProcessState oldState = state;
-        state = newState; 
+        state = newState;
         Logger::getInstance()->logStateChange(name, pid, oldState, newState);
     }
 
@@ -57,7 +55,6 @@ public:
 
     bool isFinished() { return remainTime <= 0; }
 };
-
 class Timer {
 private:
     std::thread timer_thread;
@@ -66,7 +63,7 @@ private:
     function<void()>callback;
 
 public:
-    Timer() : running(false),time_slice_expired(false) {}
+    Timer() : running(false), time_slice_expired(false) {}
 
     ~Timer() {
         stop();
@@ -77,31 +74,28 @@ public:
     }
 
     void start(int milliseconds) {
-        // 先停止当前线程
-
         stop();
-
-        // 然后启动新线程
+        running = true;
+        time_slice_expired = false;
+        timer_thread = thread([this, milliseconds]() 
         {
-            running = true;
-            time_slice_expired = false;
-            timer_thread = thread([this, milliseconds]() {
-                while (running) {
-                    if (callback) {
-                        callback();
-                    }
-                    this_thread::sleep_for(chrono::milliseconds(milliseconds));
-                    if (running) {
-                        time_slice_expired = true;
-                    }
+            while (running) 
+            {
+                if (callback) {
+                    std::cout << "[DEBUG] Timer callback triggered" << std::endl;
+                    callback();
                 }
-                });
-        }
+                this_thread::sleep_for(chrono::milliseconds(milliseconds));
+                if (running) {
+                    time_slice_expired = true;
+                    std::cout << "[DEBUG] Time slice expired flag set to true" << std::endl;
+                }
+            }
+        });
     }
 
     void stop() {
         running = false;
-
         // 在锁之外join线程，避免死锁
         if (timer_thread.joinable()) {
             timer_thread.join();
@@ -116,32 +110,47 @@ public:
         time_slice_expired = false;
     }
 };
-
 struct Comparator {
     bool operator()(PCB* p1, PCB* p2) {
         return p1->getPriority() > p2->getPriority(); //值越小优先级越高
     }
 };
-
+struct SJFComparator {
+    bool operator()(PCB* p1, PCB* p2) {
+        return p1->getRemainTime() > p2->getRemainTime();  // 剩余时间越短优先级越高
+    }
+};
 class ProcessManager {
 private:
     unordered_map<int, PCB*> processMap;
-    priority_queue<PCB*,vector<PCB*>, Comparator> readyQueue; //就绪队列
+    priority_queue<PCB*, vector<PCB*>, Comparator> readyQueue; //就绪队列
+    priority_queue<PCB*, vector<PCB*>, SJFComparator> sjfQueue; // 短作业优先队列
     queue<PCB*> blockQueue; //阻塞队列
+    queue<PCB*> fcfsQueue; // FCFS 队列
+    deque<PCB*> rrQueue;    // 时间片轮转队列
     PCB* runningProcess; //当前正在运行进程
     int nextPid;
     int timeSlice;
     const int TIME_SLICE_MS = 1000; //设置时间片1秒
     Timer* scheduleTimer;
     Logger* logger;
+    SchedulePolicy policy;
 public:
-    ProcessManager() {
+    ProcessManager(SchedulePolicy p = SchedulePolicy::PRIORITY) : policy(p) {
         nextPid = 0;
-        runningProcess = NULL;
+        runningProcess = nullptr;
         scheduleTimer = new Timer();
         timeSlice = 1;
-        //设置回调函数
+
         logger = Logger::getInstance();
+        std::cout << "【调试】当前调度策略是: "
+            << (policy == SchedulePolicy::SJF ? "SJF" :
+                policy == SchedulePolicy::FCFS ? "FCFS" :
+                policy == SchedulePolicy::RR ? "Round Robin" : "PRIORITY")
+            << std::endl;
+
+        //// 设置定时器的回调函数
+        //scheduleTimer->setCallBack([this]() { this->timeSliceExpired(); });
     }
     bool hasProcesses() const {
         return !processMap.empty() || runningProcess != nullptr;
@@ -159,7 +168,7 @@ public:
     void dispatcher();
 
     void timeSliceExpired();
-
+    void addToReadyQueue(PCB* ptr);
     // 添加析构函数到ProcessManager类
     ~ProcessManager() {
         // 先停止定时器
@@ -176,7 +185,4 @@ public:
         processMap.clear();
     }
 };
-
-
-
 #endif
