@@ -2,195 +2,41 @@
 
 File::File()
 {
-	currentBlock = -1;
-	storagePos = 0;
-	command = "";//-----------------------------?
 	path = "";
-	FCBList = new list<MyFCB>;
+	FCBList = nullptr;
 }
-inline char* File::readBlock(int blockNum)
+//
+void File::loginIn()
 {
-	char* block = (char*)malloc(sizeof(BLOCK_SIZE));
-	storagePos = blockNum * BLOCK_SIZE;
-	for (size_t i = 0; i < BLOCK_SIZE; i++) block[i] =(unsigned char) readStorage();
-	return block;
-}
-inline void File::writeBlock(char* block, int blockNum)
-{
-	storagePos = blockNum * BLOCK_SIZE;
-	for (size_t i = 0; i < BLOCK_SIZE; i++) writeStorage(block[i]);
-}
-inline int File::newBlock()
-{
-	int block = 0;
-	int flag = 1;
-	//如果读取出界会返回-1
-	while (flag)
-	{
-		block++;
-		storagePos = block * BLOCK_SIZE + 1;
-		flag = readStorage();//为0则为未使用块
-		if (flag < 0) break;//即读取失败，创建新块---------读取出界后需重新打开文件
-	}
-	ioFile.close();
-	ioFile.open(FILE_NAME);
-	clearBlock(block);
-	return block;
-}
-inline void File::clearBlock(int blockNum)
-{
-	deleteBlock(blockNum);
-	setBlockStage(blockNum, true);
-}
-inline void File::deleteBlock(int block)
-{
-	int num = BLOCK_SIZE;
-	storagePos = block * BLOCK_SIZE;
-	while (num > 0)
-	{
-		writeStorage(0);
-		num--;
-	}
-}
-inline void File::deleteAllNextBlock(int nowBlock)
-{
-	int nextBlock;
+	tryOpenFile();
+	cout << "\
+选择操作：\n\
+login:登录\n\
+show:显示所有用户\n\
+create:创建新用户\n\
+delete:删除用户\n\
+exit:退出程序\
+" << endl;
 
-	nextBlock = getNextBlock(nowBlock);
-	if (nextBlock != 0)
-	{
-		setNextBlock(nowBlock, 0);
-		while (nextBlock != 0)
-		{
-			nowBlock = nextBlock;
-			setBlockStage(nowBlock, false);
-			nextBlock = getNextBlock(nowBlock);
-			deleteBlock(nowBlock);
-		}
+	string input;
+	while (1) {
+		cout << "请选择操作:";
+		cin >> input;
+		if (input == "login") { if (commandLogin()) fileControl(); }
+		else if (input == "show") commandShowUser();
+		else if (input == "create")commandCreateUser();
+		else if (input == "delete")commandDeleteUser();
+		else if (input == "exit") break;
+		else cout << "请按要求输入" << endl;
 	}
-}
-inline void File::setBlockStage(int block, bool type)
-{
-	storagePos = block * BLOCK_SIZE + 1;
-	writeStorage(type ? 1 : 0);
-}
-inline bool File::getBlockStage(int block)
-{
-	storagePos = block * BLOCK_SIZE + 1;
-	return readStorage() ? true : false;
-}
-inline void File::setNextBlock(int block, int num)
-{
-	storagePos = block * BLOCK_SIZE + 2;
-	writeStorage(num / 256);
-	writeStorage(num % 256);
-}
-inline int File::getNextBlock(int block)
-{
-	storagePos = block * BLOCK_SIZE + 2;
-	return readStorage() * 256 + readStorage();
-}
-
-inline void File::writeStorage(unsigned char num)
-{
-	//直观显示模拟内存中数据
-	ioFile.seekp(storagePos * 3);
-	int tmp1, tmp2;
-	tmp1 = num / 16;
-	tmp2 = num % 16;
-	num = 2;
-	while (num) {
-		switch (tmp1)
-		{
-		case 10:
-			ioFile.write("A", 1);
-			break;
-		case 11:
-			ioFile.write("B", 1);
-			break;
-		case 12:
-			ioFile.write("C", 1);
-			break;
-		case 13:
-			ioFile.write("D", 1);
-			break;
-		case 14:
-			ioFile.write("E", 1);
-			break;
-		case 15:
-			ioFile.write("F", 1);
-			break;
-		default:
-			ioFile.write(to_string(tmp1).c_str(), 1);
-			break;
-		}
-		tmp1 = tmp2;
-		num--;
-	}
-	ioFile.write(" ", 1);
-
-	//使用16进制ascii码查看器来查看内存内容
-	/*ioFile.seekp(storagePos);
-	ioFile.put(num);*/
-
-	storagePos++;
-}
-inline int File::readStorage()
-{
-	int num = -1;
-	//直观显示模拟内存中数据
-	ioFile.seekg(storagePos * 3);
-	char tmp[1];
-	tmp[0] = 0;
-	num = 0;
-	ioFile.read(tmp, 1);
-	while (tmp[0] != ' ') {
-		num *= 16;
-		switch (tmp[0])
-		{
-		case 'A':
-			num += 10;
-			break;
-		case 'B':
-			num += 11;
-			break;
-		case 'C':
-			num += 12;
-			break;
-		case 'D':
-			num += 13;
-			break;
-		case 'E':
-			num += 14;
-			break;
-		case 'F':
-			num += 15;
-			break;
-		case 0:
-			return -1;
-		default:
-			num += (int)tmp[0] - 48;
-			break;
-		}
-		tmp[0] = 0;
-		ioFile.read(tmp, 1);
-	}
-	//使用16进制ascii码查看器来查看内存内容
-	/*ioFile.seekg(storagePos);
-	num = (unsigned char)ioFile.get();*/
-
-	storagePos++;
-	return num;
 }
 
 void File::fileControl()
 {
-	system("cls");
-	loginIn();//登录
 	loadMainPath();//要求
-	cin.get();//清除主函数中未处理的换行符
-	system("cls");
-	cout << "操作方式：\n\
+	cin.get();//之前中未处理的换行符，若处理后则需删除
+	cout << "\
+操作方式：\n\
 1:cd 路径  路径从~开始为返回主目录，否则从当前目录开始\n\
 2:ls 路径  用法同上，但路径可置空，代表查找当前目录\n\
 3:mkdir 文件名  在当前目录下创建文件目录\n\
@@ -198,596 +44,730 @@ void File::fileControl()
 5:mkfile 文件名 在当前目录下创建文件\n\
 6:permission 文件名 0~3 设置文件权限\n\
 7:logout 退出登录\n\
-注意文件路径使用\\" << endl;
+注意文件路径使用\\\
+" << endl;
 
 	while (1) {
 		cout << "[" << userName << "@" << path << "]>";
-		getline(cin, input);//会正常读取中文字符，处理时可能会出现问题
-
-		inputPos = input.begin();
-		findFirstCommand();
+		getCommand();
+		findString(1);
 
 		if (!command.empty())
 		{
-			if (command == "cd")//路径命令，~号代表基地址，使用\分隔文件
+			if (command == "cd")commandChangePath();
+			if (command == "ls")commandShowPathFile();
+			if (command == "mkdir")commandCreatePath();
+			if (command == "rmdir")commandDeletePath();
+			if (command == "mkfile")commandCreateFile();
+			if (command == "permission")commandChangePermission();
+			if (command == "logout") break;
+		}
+	}
+}
+//
+void File::commandChangePath()
+{
+	MyFCBHead* tmp;
+
+	findString(2);
+	if (command.empty())
+	{
+		cout << "缺少参数" << endl;
+		return;
+	}
+	tmp = readPathFCBFile(command);
+	if (tmp == nullptr)
+	{
+		cout << "路径不正确" << endl;
+		return;
+	}
+
+	if (command[0] != '~') path = path + "\\" + command;
+	else path = command;
+	FCBList = tmp;
+}
+void File::commandShowPathFile()
+{
+	MyFCBHead* tmp;
+
+	findString(2);
+	if (command == "")tmp = readPathFCBFile(path);
+	else
+	{
+		tmp = readPathFCBFile(command);
+		if (tmp == nullptr) cout << "路径不正确" << endl;
+	}
+	cout << "文件类型---文件名称------------------------------------------关系--修改时间---------创建时间-------" << endl;
+	for (MyFCB* tmpFCB = FCBList->firstFCB; tmpFCB != nullptr; tmpFCB = tmpFCB->next)
+	{
+		cout << "  ";
+		if (tmpFCB->getTypeFlag()) cout << "目录";
+		else cout << "文件";
+		cout << "      ";
+		cout.width(NAME_LEN);
+		cout.flags(ios::left);
+		cout << tmpFCB->getName();
+		cout << "";
+		if (!(tmpFCB->getTypeFlag()))
+		{
+			if ((tmpFCB->getOwner()) == userId) cout << "拥有";
+			else switch ((tmpFCB->getIsReadable() ? 1 : 0) * 2 + (tmpFCB->getIsWritable() ? 1 : 0))
 			{
-				commandChangePath();
-				continue;
+			case 0:
+				cout << "保护";
+				break;
+			case 1:
+				cout << "只写";
+				break;
+			case 2:
+				cout << "只读";
+				break;
+			case 3:
+				cout << "公有";
+				break;
 			}
-			if (command == "ls")//后跟文件夹名称或路径或置空
+		}
+		else cout << "    ";
+		cout << "  ";
+		cout << tmpFCB->getChangeTime();
+		cout << "  ";
+		cout << tmpFCB->getCreateTime();
+		cout << endl;
+	}
+}
+void File::commandCreatePath()
+{
+	findString(2);
+	if (command.size() > 49) cout << "文件名长度过长" << endl;//-----------------------------使用固定值
+	else if (command.empty() || command == "~" || command.find('\\') != -1) cout << "文件名非法" << endl;
+	else if (FCBList->findFCB(command) != nullptr) cout << "该文件名已存在" << endl;
+	else
+	{
+		MyFCB* tmp = new MyFCB(true, userId, command);
+		tmp->setStorageBlock(findNewBlock());
+		setPathParentBlock(tmp->getStorageBlock(), FCBList->getCurrentBlock());
+		FCBList->addFCB(tmp);
+
+		writeFCBBlocks(FCBList);
+		readFCBBlocks(FCBList->getCurrentBlock());
+	}
+
+}
+void File::commandCreateFile()
+{
+	findString(2);
+	if (command.size() > 49) cout << "文件名长度过长" << endl;//-----------------------------使用固定值
+	else if (command.empty() || command == "~" || command.find('\\') != -1) cout << "文件名非法" << endl;
+	else if (FCBList->findFCB(command) != nullptr) cout << "该文件名已存在" << endl;
+	else
+	{
+		MyFCB* tmp = new MyFCB(false, userId, command);
+		tmp->setStorageBlock(findNewBlock());
+		//-------------暂未确定文件块索引中父块编号位置
+		FCBList->addFCB(tmp);
+
+		writeFCBBlocks(FCBList);
+		readFCBBlocks(FCBList->getCurrentBlock());
+	}
+
+}
+void File::commandDeletePath()
+{
+	int fileBlock;
+	MyFCBHead* tmp;
+
+	findString(2);
+	if (command.empty()) cout << "缺少参数" << endl;
+
+	else if (command == path) cout << "不允许删除当前目录" << endl;
+	else if (command == "~") cout << "操作非法" << endl;
+	else
+	{
+		tmp = readPathFCB(command);
+		if (tmp == nullptr)
+		{
+			cout << "路径不正确！" << endl;
+			return;
+		}
+		else if (!tmp->firstFCB->getTypeFlag())
+		{
+			cout << "目标不是一个文件目录" << endl;
+			return;
+		}
+		tmp = readFCBBlocks(tmp->firstFCB->getStorageBlock());
+		if (tmp->firstFCB != nullptr)
+		{
+			cout << "要删除的目录不为空" << endl;
+			return;
+		}
+
+		fileBlock = tmp->getCurrentBlock();
+		deleteFCBBlock(fileBlock);
+		tmp = readFCBBlocks(tmp->getParentBlock());
+
+		tmp->delFCB(fileBlock);
+		writeFCBBlocks(tmp);
+	}
+}
+void File::commandChangePermission()
+{
+	findString(2);
+	MyFCBHead* tmp = readPathFCB(command);
+	if (tmp == nullptr)
+	{
+		cout << "路径不正确" << endl;
+		return;
+	}
+	tmp = readFCBBlocks(tmp->getParentBlock());
+	MyFCB* tmpFCB = tmp->findFCB(command);
+	if (tmpFCB->getOwner() != userId)
+	{
+		cout << "无修改权限" << endl;
+	}
+	else if (tmpFCB->getTypeFlag())
+	{
+		cout << "对象为一个目录" << endl;
+	}
+	else
+	{
+		findString(3);
+		tmpFCB->setIsReadable(input[0] - '0');
+		tmpFCB->setIsWritable(input[1] - '0');
+		writeFCBBlocks(tmp);
+	}
+}
+void File::loadMainPath()
+{
+	path = "~";
+	FCBList = readPathFCBFile(path);
+	//char reader[1024];//seek越界不会提示，如果读取出界则在reader中原有的数据不会改变
+}
+MyFCBHead* File::readPathFCB(string filePath)
+{
+	string fileName;
+	MyFCBHead* tmp = FCBList;
+	MyFCB* tmpFCB = nullptr;
+
+	if (filePath == "~" || filePath == "" || filePath[0] == '\\') return nullptr;
+	fileName = findFirstFileName(&filePath);
+	if (fileName == "~")//表明从根目录起
+	{
+		tmp = readFCBBlocks(1);
+		fileName = findFirstFileName(&filePath);
+	}
+	while (1) {
+		if (fileName=="..")//进入父目录
+		{
+			if (tmp->getCurrentBlock() == 1) return nullptr;
+			tmp = readFCBBlocks(tmp->getParentBlock());
+			fileName = findFirstFileName(&filePath);
+			if (fileName.empty())
 			{
-				commandShowPathFile();
-				continue;
+				if (tmp->getCurrentBlock() == 1) break;
+				int tmpInt = tmp->getCurrentBlock();
+				tmp = readFCBBlocks(tmp->getParentBlock());
+				tmp->firstFCB = tmp->findFCB(tmpInt);
+				return tmp;
 			}
-			if (command == "mkdir")//后跟文件夹名称
+		}
+		else
+		{
+			tmpFCB = tmp->findFCB(fileName);
+			if (tmpFCB == nullptr || !tmpFCB->getCreateFlag()) return nullptr;
+			fileName = findFirstFileName(&filePath);
+			if (fileName.empty()) break;
+			if (!tmpFCB->getTypeFlag() || tmpFCB->getStorageBlock() == 0) return nullptr;//下一个要打开的目标不为文件夹
+			tmp = readFCBBlocks(tmpFCB->getStorageBlock());
+		}
+	}
+	tmp->firstFCB = tmpFCB;
+	return tmp;
+}
+MyFCBHead* File::readPathFCBFile(string filePath)
+{
+	if (filePath=="~") return readFCBBlocks(1);
+	MyFCBHead* tmp = readPathFCB(filePath);
+	if (tmp == nullptr)return nullptr;
+	return readFCBBlocks(tmp->firstFCB->getStorageBlock());
+}
+string File::findFirstFileName(string* input)
+{
+	string output;
+	int pos;
+	pos = input->find('\\');
+	if (pos == -1)
+	{
+		output = *input;
+		*input = "";
+	}
+	else
+	{
+		output = input->substr(0, pos);//第二个参数为负数则会读到结尾（无效参数？）
+		*input = input->substr(pos + 1);
+	}
+	return output;
+}
+void File::writeFCBBlocks(MyFCBHead* input)
+{
+	int nowBlock, nextBlock, sumBlock;
+	nowBlock = input->getCurrentBlock();
+	nextBlock = getNextFCBBlock(nowBlock);
+	sumBlock = getSumBlockNum();
+	clearBlock(nowBlock);
+	setBlockStage(nowBlock, true);
+	if (input->getCurrentBlock()!=1) setPathParentBlock(nowBlock, input->getParentBlock());
+	else setPathParentBlock(nowBlock, sumBlock);
+
+	if (input->firstFCB != nullptr)
+	{
+		int i = 1;
+		for (MyFCB* tmp = input->firstFCB; tmp != nullptr; tmp = tmp->next)
+		{
+			if (!tmp->getCreateFlag()) continue;
+			if (i == BLOCK_SIZE / 64)
 			{
-				commandCreatePath();
-				continue;
+				//进入下一块/创建新块
+				if (nextBlock == 0)
+				{
+					nextBlock = findNewBlock();
+					setNextFCBBlock(nowBlock, nextBlock);
+				}
+				nowBlock = nextBlock;
+				nextBlock = getNextFCBBlock(nowBlock);
+				clearBlock(nowBlock);
+				setBlockStage(nowBlock, true);
+				i = 1;
 			}
-			if (command == "rmdir")
+			writeFCB(nowBlock, i, tmp);
+			i++;
+			if (tmp==nullptr)
 			{
-				commandDeletePath();
-			}
-			if (command == "mkfile")
-			{
-				commandCreateFile();
-			}
-			if (command == "permission")
-			{
-				commandChangePermission();
-			}
-			if (command == "logout")
-			{
-				system("cls");
-				ioFile.close();
-				loginIn();//登录
-				loadMainPath();//要求
-				cin.get();//清除主函数中未处理的换行符
-				system("cls");
-			}
-			if (command == "exit")//退出程序
-			{
-				ioFile.close();
-				return;
+				MyFCB* tmpFCB = new MyFCB(true, 0, "");
+				tmpFCB->deleteFCB();
+				for (; i < BLOCK_SIZE / 64; i++) writeFCB(nowBlock, i, tmpFCB);
 			}
 		}
 	}
 
+	//判断原有块是否均已使用，未使用的删除
+	setNextFCBBlock(nowBlock, 0);
+	if (nextBlock != 0) deleteFCBBlock(nextBlock);
+}
+MyFCBHead* File::readFCBBlocks(int blockNum)
+{
+	MyFCBHead* head = new MyFCBHead(blockNum);
+	head->setParentBlock(getPathParentBlock(blockNum));
+	MyFCB* tmp;
+	int nowBlock, nextBlock;
+	nowBlock = blockNum;
+	do{
+		nextBlock = getNextFCBBlock(nowBlock);
+		for (size_t i = 1; i < BLOCK_SIZE / 64; i++)
+		{
+			tmp = new MyFCB(readLine(nowBlock, i * 64, 64));
+			if (tmp->getCreateFlag()) head->addFCB(tmp);
+		}
+		nowBlock = nextBlock;
+	} while (nowBlock != 0);
+	return head;
 }
 
-void File::loginIn()
+bool File::commandLogin()
 {
-	//文件命名为storage
+	string name,password;
+	User* user;
+	cout << "请输入用户名：";
+	cin >> name;
+	user = checkUserName(name);
+	if (user == nullptr)
+	{
+		cout << "用户不存在" << endl;
+		return false;
+	}
+	cout << "请输入密码:";
+	cin >> password;
+	if (!user->cmpPassword(password))
+	{
+		cout << "密码错误" << endl;
+		return false;
+	}
+	userId = user->getId();
+	userName = user->getName();
+	cout << "登录成功" << endl;
+	return true;
+}
+void File::commandShowUser()
+{
+	User* user;
+	cout << "--id----用户名称----------------------------------------------------------" << endl;
+	for (size_t i=0; i < 16; i++)
+	{
+		user = readUser(i);
+		if (!user->getEnableFlag()) continue;
+		cout << "  ";
+		cout.width(2);
+		cout.setf(ios::right);
+		cout << user->getId();
+		cout << "    ";
+		cout.width(size(user->getName()));
+		cout.setf(ios::left);
+		cout << user->getName();
+		cout << endl;
+	}
+}
+void File::commandCreateUser()
+{
+	User* user = getNewUser();
+	string name, password;
+	if (user == nullptr)
+	{
+		cout << "用户数量已达上限" << endl;
+		return;
+	}
+	cout << "请输入用户名：";
+	cin >> name;
+	if (checkUserName(name) != nullptr)
+	{
+		cout << "用户名已存在" << endl;
+		return;
+	}
+	cout << "请输入密码:";
+	cin >> password;
+	writeUser(new User(user->getId(), name, password));
+}
+void File::commandDeleteUser()
+{
+	User* user;
+	string name, password;
+	cout << "请输入用户名：";
+	cin >> name;
+	user = checkUserName(name);
+	if (user == nullptr)
+	{
+		cout << "用户不存在" << endl;
+		return;
+	}
+	cout << "请输入密码:";
+	cin >> password;
+	if (!user->cmpPassword(password))
+	{
+		cout << "密码错误" << endl;
+		return;
+	}
+	deleteUser(user->getId());
+	cout << "删除成功" << endl;
+}
+User* File::checkUserName(string input)
+{
+	User* user;
+	for (size_t i = 0; i < 16; i++)
+	{
+		user = readUser(i);
+		if (user->getId() != -1) if (user->cmpName(input)) return user;
+	}
+	return nullptr;
+}
+User* File::getNewUser()
+{
+	User* user;
+	for (size_t i = 0; i < 16; i++)
+	{
+		user = readUser(i);
+		if (!user->getEnableFlag()) return user;
+	}
+	return nullptr;
+}
+//
+void File::findString(int num)
+{
+	string::iterator pos = input.begin();
+	for (size_t i=0; i < num; i++)
+	{
+		command = "";
+		while (pos != input.end() && *pos == ' ') pos++;//跳过空格
+		for (; pos != input.end() && *pos != ' '; pos++) command += *pos;
+	}
+
+}
+
+inline void File::writeFCB(int blockNum, int FCBNum, MyFCB* input)
+{
+	writeLine(input->toString(), blockNum, FCBNum * 64, 64);
+}
+inline MyFCB* File::readFCB(int blockNum, int FCBNum)
+{
+	return new MyFCB(readLine(blockNum, FCBNum * 64, 64));
+}
+void File::deleteFCBBlock(int nowBlock)
+{
+	int nextBlock;
+	nextBlock = getNextFCBBlock(nowBlock);
+	clearBlock(nowBlock);
+	while (nextBlock != 0)
+	{
+		nowBlock = nextBlock;
+		nextBlock = getNextFCBBlock(nowBlock);
+		setBlockStage(nowBlock, false);
+		clearBlock(nowBlock);
+	}
+}
+inline void File::setNextFCBBlock(int blockNum, int num)
+{
+	char input[2] = { num % 256,num / 256 };
+	writeLine(input, blockNum, 2, 2);
+}
+inline int File::getNextFCBBlock(int blockNum)
+{
+	unsigned char* output;
+	output = (unsigned char*)readLine(blockNum, 2, 2);
+	return output[1] * 256 + output[0];
+}
+inline void File::setPathParentBlock(int blockNum, int parentNum)
+{
+	char input[2] = { parentNum % 256,parentNum / 256 };
+	writeLine(input, blockNum, 4, 2);
+}
+inline int File::getPathParentBlock(int blockNum)
+{
+	char* output;
+	output = readLine(blockNum, 4, 2);
+	return output[1] * 256 + output[0];
+}
+
+void File::deleteUser(int id)
+{
+	User* tmp=new User(id);
+	tmp->disableUser();
+	writeUser(tmp);
+}
+inline User* File::readUser(int id)
+{
+	User* output = new User(readLine(0, id * 64, 64));
+	output->setId(id);
+	return output;
+}
+inline void File::writeUser(User* input)
+{
+	writeLine(input->toString(), 0, input->getId() * 64, 64);
+}
+//
+inline void File::getCommand()
+{
+	getline(cin, input);//会正常读取中文字符，处理时可能会出现问题
+}
+
+inline int File::findNewBlock()
+{
+	int sumBlockNum = getSumBlockNum();
+	for (size_t i = 0; i < sumBlockNum; i++)
+	{
+		if (!getBlockStage(i))
+		{
+			clearBlock(i);
+			setBlockStage(i, true);
+			return i;
+		}
+	}
+	int blockNum = createBlock();
+	clearBlock(blockNum);
+	setBlockStage(blockNum, true);
+	return blockNum;
+}
+inline void File::writeBlock(char* input, int blockNum)
+{
+	writeLine(input, blockNum, 0, BLOCK_SIZE);
+}
+inline char* File::readBlock(int blockNum)
+{
+	char* output;
+	output = readLine(blockNum, 0, BLOCK_SIZE);
+	return output;
+}
+inline void File::clearBlock(int blockNum)
+{
+	for (size_t i = 0; i < BLOCK_SIZE; i++) writeStorage(0, blockNum, i);
+}
+inline void File::writeLine(char* input, int blockNum, int posNum, int len)
+{
+	for (size_t i = 0; i < len; i++) writeStorage(input[i], blockNum, posNum + i);
+}
+inline char* File::readLine(int blockNum, int posNum, int len)
+{
+	char* output = new char[len];
+	for (size_t i = 0; i < len; i++) output[i] = readStorage(blockNum, posNum + i);
+	return output;
+}
+inline int File::getSumBlockNum()
+{
+	unsigned char* output;
+	output = (unsigned char*)readLine(1, 4, 2);
+	return output[0] + output[1] * 256;
+}
+inline void File::setSumBlockNum(int sumBlockNum)
+{
+	char input[2] = { sumBlockNum % 256,sumBlockNum / 256 };
+	writeLine(input, 1, 4, 2);
+}
+inline void File::setBlockStage(int blockNum, bool status)
+{
+	writeStorage(status ? 1 : 0, blockNum, 1);
+}
+inline bool File::getBlockStage(int blockNum)
+{
+	return readStorage(blockNum,1) ? true : false;
+}
+//
+string File::charToString(char* input)
+{
+	string output = "";
+	for (size_t i = 0; i < sizeof(input); i++)
+	{
+		if (input[i] == '\0')break;
+		output += input[i];
+	}
+	return output;
+}
+void File::tryOpenFile()
+{
 	ioFile.open(FILE_NAME);
 	if (!ioFile.is_open())//无文件，重新创建
 	{
 		ioFile.open(FILE_NAME, ios::out);//fstream需已只写模式创建文件
 		ioFile.close();
 		ioFile.open(FILE_NAME);
-		newNameBlock();
+		//创建管理用户，id为0，名称为root，密码为123456
+		for (size_t i = 0; i < BLOCK_SIZE; i++) writeStorage(0, 0, i);
+		for (size_t i = 0; i < BLOCK_SIZE; i++) writeStorage(0, 1, i);
+		setBlockStage(1, true);
+		setSumBlockNum(2);
+		User* user=new User(0, "root", "123456");
+		writeUser(user);
 		cout << "文件创建成功" << endl;
-		ioFile.close();//保存文件
-		ioFile.open(FILE_NAME);
-	}
-
-
-
-	cout << "选择操作：\n\
-1:登录\n\
-2:创建新用户\n\
-3:删除用户" << endl;
-	int id;
-	char input;
-	string name, password;
-	User user;
-	bool endFlag = false;
-
-	while(!endFlag){
-		cout << "请选择操作:";
-		cin >> input;
-		switch (input)
-		{
-		case '1':
-			cout << "请输入用户名：";
-			cin >> name;
-			id = checkUserName(name);
-			if (id == -1) 
-			{
-				cout << "用户不存在" << endl;
-				break;
-			}
-			cout << "请输入密码:";
-			cin >> password;
-			user = User(readUser(id));
-			if (user.cmpPassword(password))
-			{
-				userId = user.getId();
-				userName = user.name;
-				cout << "登录成功" << endl;
-				endFlag = true;
-				break;
-			}
-			cout << "密码错误" << endl;
-			break;
-		case '2':
-			id = getNewId();
-			if (id==-1)
-			{
-				cout << "用户数量已达上限" << endl;
-				break;
-			}
-			cout << "请输入用户名：";
-			cin >> name;
-			if (checkUserName(name) != -1)
-			{
-				cout << "用户名已存在" << endl;
-				break;
-			}
-			cout << "请输入密码:";
-			cin >> password;
-			writeUser(User(id, name, password));
-			break;
-		case '3':
-			cout << "请输入用户名：";
-			cin >> name;
-			id = checkUserName(name);
-			if (id == -1)
-			{
-				cout << "用户不存在" << endl;
-				break;
-			}
-			cout << "请输入密码:";
-			cin >> password;
-			user = User(readUser(id));
-			if (user.cmpPassword(password))
-			{
-				deleteUser(id);
-				cout << "删除成功" << endl;
-				break;
-			}
-			cout << "密码错误" << endl;
-			break;
-		default:
-			cout << "请按要求输入" << endl;
-			getline(cin, name);
-			break;
-		}
 	}
 }
-int File::getNewId()
+inline int File::createBlock()
 {
-	User user;
-	for (size_t i = 0; i < 16; i++)
+	clearBlock(getSumBlockNum());
+	setSumBlockNum(getSumBlockNum()+1);
+	return getSumBlockNum()-1;
+}
+inline void File::writeStorage(unsigned char input, int blockNum, int posNum)
+{
+	//直观显示模拟内存中数据
+	ioFile.seekp((blockNum * BLOCK_SIZE + posNum) * 3);
+	switch (input / 16)
 	{
-		user = User(readUser(i));
-		if (user.getId() == 255) return i;
+	case 10:
+		ioFile.write("A", 1);
+		break;
+	case 11:
+		ioFile.write("B", 1);
+		break;
+	case 12:
+		ioFile.write("C", 1);
+		break;
+	case 13:
+		ioFile.write("D", 1);
+		break;
+	case 14:
+		ioFile.write("E", 1);
+		break;
+	case 15:
+		ioFile.write("F", 1);
+		break;
+	default:
+		ioFile.write(to_string(input / 16).c_str(), 1);
+		break;
 	}
-	return -1;
-}
-int File::checkUserName(string name)
-{
-	User user;
-	for (size_t i = 0; i < 16; i++)
+	switch (input % 16)
 	{
-		user = User(readUser(i));
-		if (user.getId() != -1) if (user.cmpName(name))
-		{
-			return user.getId();
-		}
+	case 10:
+		ioFile.write("A", 1);
+		break;
+	case 11:
+		ioFile.write("B", 1);
+		break;
+	case 12:
+		ioFile.write("C", 1);
+		break;
+	case 13:
+		ioFile.write("D", 1);
+		break;
+	case 14:
+		ioFile.write("E", 1);
+		break;
+	case 15:
+		ioFile.write("F", 1);
+		break;
+	default:
+		ioFile.write(to_string(input % 16).c_str(), 1);
+		break;
 	}
-	return -1;
+	ioFile.write(" ", 1);
+
+	//使用16进制ascii码查看器来查看内存内容
+	/*ioFile.seekp(blockNum * BLOCK_SIZE + posNum);
+	ioFile.put(input);*/
 }
-void File::newNameBlock()
+inline unsigned char File::readStorage(int blockNum, int posNum)
 {
-	//创建管理用户，id为0，名称为root，密码为123456
-	clearBlock(0);
-	clearBlock(1);
-	User user(0, "root", "123456");
-	writeUser(user);
-}
-char* File::readUser(int id)
-{
-	storagePos = id * 64;
-	char* input = new char[64];
-	for (size_t i = 0; i < 64; i++) input[i] = readStorage();
-	return input;
-}
-void File::writeUser(User input)
-{
-	storagePos = input.getId()*64;
-	char* output = input.toString();
-	for (size_t i = 0; i < 64; i++) writeStorage(output[i]);
-}
-void File::deleteUser(int id)
-{
-	storagePos = id * 64;
-	for (size_t i = 0; i < 64; i++) writeStorage(0);
-}
-void File::loadMainPath()
-{
-	path = "~";
-	currentBlock = 1;
-	loadFCB(1);
-	//char reader[1024];//seek越界不会提示，如果读取出界则在reader中原有的数据不会改变
-}
-void File::findFirstCommand()
-{
-	string tmp = "";
-	while (inputPos != input.end() && *inputPos == ' ') inputPos++;//跳过空格
-	for (; inputPos != input.end() && *inputPos != ' '; inputPos++) tmp += *inputPos;
-	command = tmp;
-}
-string File::findFileName()
-{
-	string output;
-	int pos;
-	pos = command.find('\\');
-	if (pos == -1)
+	int output = 0;
+	char tmp[2];
+	//直观显示模拟内存中数据
+	ioFile.seekg((blockNum * BLOCK_SIZE + posNum) * 3);
+	ioFile.read(tmp, 2);
+	switch (tmp[0])
 	{
-		output = command;
-		command = "";
+	case 'A':
+		output += 10;
+		break;
+	case 'B':
+		output += 11;
+		break;
+	case 'C':
+		output += 12;
+		break;
+	case 'D':
+		output += 13;
+		break;
+	case 'E':
+		output += 14;
+		break;
+	case 'F':
+		output += 15;
+		break;
+	default:
+		output += (unsigned char)tmp[0] - 48;
+		break;
 	}
-	else
+	output *= 16;
+	switch (tmp[1])
 	{
-		output = command.substr(0, pos);//第二个参数为负数则会读到结尾（无效参数？）
-		command = command.substr(pos + 1);
+	case 'A':
+		output += 10;
+		break;
+	case 'B':
+		output += 11;
+		break;
+	case 'C':
+		output += 12;
+		break;
+	case 'D':
+		output += 13;
+		break;
+	case 'E':
+		output += 14;
+		break;
+	case 'F':
+		output += 15;
+		break;
+	default:
+		output += (unsigned char)tmp[1] - 48;
+		break;
 	}
+	//使用16进制ascii码查看器来查看内存内容
+	/*ioFile.seekg(blockNum * BLOCK_SIZE + posNum);
+	output = (unsigned char)ioFile.get();*/
+
 	return output;
-}
-
-void File::commandChangePath()
-{
-	pair<int,int> block;
-
-	findFirstCommand();
-	if (command.empty())
-	{
-		cout << "缺少参数" << endl;
-		return;
-	}
-	block = locateBlock();
-	if (block.first == -1)
-	{
-		cout << "路径不正确" << endl;
-		return;
-	}
-	if (block.second==0)
-	{
-		cout << "路径不是一个文件夹" << endl;
-		return;
-	}
-
-	loadFCB(block.first);
-	if (strcmp(command.substr(0, command.find('\\')).c_str(), "~")!=0)
-	{
-		command = path + "\\" + command;
-	}
-	path = command;
-	currentBlock = block.first;
-}
-void File::commandShowPathFile()
-{
-	int block;
-	MyFCB tmp;
-
-	findFirstCommand();
-	block = locateBlock().first;
-	if (block==-1)
-	{
-		cout << "路径不正确" << endl;
-	}
-	else
-	{
-		loadFCB(block);
-		cout << "文件类型---文件名称------------------------------------------关系--修改时间---------创建时间-------" << endl;
-		for (list<MyFCB>::iterator it = FCBList->begin(); it != FCBList->end(); it++)
-		{
-			tmp = *it;
-			cout << "  ";
-			if (tmp.dataFlag&0b01000000) cout << "目录";
-			else cout << "文件";
-			cout << "      ";
-			cout.width(size(tmp.name));
-			cout.setf(ios::left);
-			cout << tmp.name;
-			cout << "";
-			if (!(tmp.dataFlag & 0b01000000))
-			{
-				if ((tmp.dataFlag & 0b00001111) == userId) cout << "拥有";
-				else switch ((tmp.dataFlag / 16)&0b0011)
-				{
-				case 0:
-					cout << "保护";
-					break;
-				case 1:
-					cout << "只写";
-					break;
-				case 2:
-					cout << "只读";
-					break;
-				case 3:
-					cout << "公有";
-					break;
-				}
-			}
-			else
-			{
-				cout << "    ";
-			}
-			cout << "  ";
-			cout << tmp.toTime(0);
-			cout << "  ";
-			cout << tmp.toTime(1);
-			cout << endl;
-		}
-	}
-	loadFCB(currentBlock);
-}
-void File::commandCreatePath()
-{
-	MyFCB tmp;
-	findFirstCommand();
-	if (command.size() > size(tmp.name))
-	{
-		cout << "文件名长度过长" << endl;
-	}
-	else if (command.empty()||command == "~" || command.find('\\') != -1)
-	{
-		cout << "文件名非法" << endl;
-	}
-	else if (locateBlock() .first!= -1)
-	{
-		cout << "该文件名已存在" << endl;
-	}
-	else
-	{
-		FCBList->push_back(MyFCB(command, 0b11000000));
-
-		writeAllFCB();
-	}
-
-}
-void File::commandCreateFile()
-{
-	MyFCB tmp;
-	findFirstCommand();
-	if (command.size() > size(tmp.name))
-	{
-		cout << "文件名长度过长" << endl;
-	}
-	else if (command.empty() || command == "~" || command.find('\\') != -1)
-	{
-		cout << "文件名非法" << endl;
-	}
-	else if (locateBlock().first != -1)
-	{
-		cout << "该文件名已存在" << endl;
-	}
-	else
-	{
-		FCBList->push_back(MyFCB(command, 0b10000000+userId));
-
-		writeAllFCB();
-	}
-
-}
-void File::commandDeletePath()
-{
-	int pos;
-	string fileName;
-	pair<int, int> block;
-	MyFCB* tmpFCB;
-
-	findFirstCommand();
-	if (command.empty())
-	{
-		cout << "缺少参数" << endl;
-		return;
-	}
-	else if (command == path)
-	{
-		cout << "不允许删除当前目录" << endl;
-		return;
-	}
-
-	block = locateBlock();
-	if (block.first==-1) 
-	{
-		cout << "路径不正确！" << endl;
-		return;
-	}
-	else if (block.second!=1) 
-	{
-		cout << "目标不是一个文件目录" << endl;
-		return;
-	}
-	loadFCB(block.first);
-	if (FCBList->size()!=0) 
-	{
-		cout << "要删除的目录不为空" << endl;
-		loadFCB(currentBlock);//-----------------return检查
-		return;
-	}
-
-	deleteAllNextBlock(block.first);
-	deleteBlock(block.first);
-
-	pos = command.rfind("\\");
-	if (pos==-1)
-	{
-		fileName = command;
-		command = "";
-	}
-	else
-	{
-		fileName = command.substr(pos+1);
-		command = command.substr(0, pos);//--------------------------输入\开头似乎也正确
-	}
-	loadFCB(locateBlock().first);
-	for (list<MyFCB>::iterator it = FCBList->begin(); it != FCBList->end(); it++)
-	{
-		tmpFCB = &*it;
-		if (strcmp(tmpFCB->name, fileName.c_str()) == 0)//确认文件名称正确
-		{
-			FCBList->erase(it);
-			writeAllFCB();
-			break;
-		}
-	}
-
-	loadFCB(currentBlock);
-}
-void File::commandChangePermission()
-{
-	findFirstCommand();
-	MyFCB* tmp = locateNowFCB();
-	if (tmp==NULL)
-	{
-		cout << "文件不存在" << endl;
-	}
-	else if ((tmp->dataFlag&0b00001111)!=userId)
-	{
-		cout << "无修改权限" << endl;
-	}
-	else if (tmp->dataFlag&0b01000000)
-	{
-		cout << "对象为一个目录" << endl;
-	}
-	else
-	{
-		findFirstCommand();
-		tmp->dataFlag = (tmp->dataFlag & 0b11001111) + ((command[0] - '0') << 4);
-		writeAllFCB();
-	}
-}
-
-pair<int, int> File::locateBlock()
-{
-	string fileName, nameCommand;
-	int blockNum, type;
-	MyFCB* tmpFCB;
-
-	nameCommand = command;//防止命令被破坏
-
-	if (command[0]=='\\')
-	{
-		//错误输入
-		return pair<int, int>(-1, 0);
-	}
-
-	type = 1;
-	blockNum = currentBlock;
-	fileName = findFileName();
-	if (fileName == "~")//表明从根目录起
-	{
-		blockNum = 1;
-		fileName = findFileName();
-	}
-	while (!fileName.empty()) {
-		loadFCB(blockNum);
-		blockNum = -1;
-		for (list<MyFCB>::iterator it = FCBList->begin(); it != FCBList->end(); it++)
-		{
-			tmpFCB = &*it;
-			if (strcmp(tmpFCB->name, fileName.c_str()) == 0)//确认文件名称正确
-			{
-				blockNum = tmpFCB->storageBlock;
-				type = (tmpFCB->dataFlag & 64) ? 1 : 0;
-				if (blockNum == 0)//未使用过的文件，为其分配内存
-				{
-					blockNum = newBlock();
-					tmpFCB->storageBlock = blockNum;
-					writeAllFCB();
-				}
-				break;
-			}
-		}
-		fileName = findFileName();
-		if (blockNum == -1 || !fileName.empty() && !type)
-		{
-			fileName = "";
-			blockNum = -1;
-		}//未查找到对应文件或下一个要打开的目标不为文件夹
-	}
-	loadFCB(currentBlock);
-	command = nameCommand;
-	return pair<int, int>(blockNum, type);
-}
-void File::loadFCB(int blockNum)
-{
-	FCBList->clear();
-	MyFCB tmpFCB;
-	int tmp,nextBlock;
-	while(1){
-		nextBlock = getNextBlock(blockNum);
-		for (size_t i = 1; i < BLOCK_SIZE / 64; i++)
-		{
-			tmp = readStorage();
-			if ((tmp & 128) == 0) continue;
-			tmpFCB.dataFlag = tmp;
-			for (size_t i = 0; i < 49; i++) tmpFCB.name[i] = (char)readStorage();
-			for (size_t i = 0; i < 6; i++) tmpFCB.createTime[i] = (unsigned char)readStorage();
-			for (size_t i = 0; i < 6; i++) tmpFCB.changeTime[i] = (unsigned char)readStorage();
-			tmpFCB.storageBlock = readStorage() * 256 + readStorage();
-			FCBList->push_back(tmpFCB);
-		}
-		if (nextBlock == 0) break;
-		blockNum = nextBlock;
-	}
-}
-void File::writeAllFCB()
-{
-	int nowBlock,nextBlock;
-
-	nowBlock = currentBlock;
-	nextBlock = getNextBlock(nowBlock);
-	clearBlock(nowBlock);
-	storagePos = nowBlock * BLOCK_SIZE + 64;
-
-	for (list<MyFCB>::iterator it = FCBList->begin(); it !=FCBList->end() ; it++)
-	{
-		if (storagePos==(nowBlock +1)*BLOCK_SIZE)//取巧写法
-		{
-			//进入下一块/创建新块
-			if (nextBlock==0)
-			{
-				nextBlock = newBlock();
-				setNextBlock(nowBlock, nextBlock);
-			}
-			nowBlock = nextBlock;
-			nextBlock = getNextBlock(nowBlock);
-			clearBlock(nowBlock);
-			storagePos = nowBlock * BLOCK_SIZE + 64;
-		}
-		writeFCB(it);
-	}
-
-	//判断原有块是否均已使用，未使用的删除
-	deleteAllNextBlock(nowBlock);
-}
-void File::writeFCB(list<MyFCB>::iterator it)
-{
-	MyFCB tmp = *it;
-	writeStorage(tmp.dataFlag);
-	for (size_t i = 0; i < 49; i++) writeStorage(tmp.name[i]);
-	for (size_t i = 0; i < 6; i++) writeStorage(tmp.createTime[i]);
-	for (size_t i = 0; i < 6; i++) writeStorage(tmp.changeTime[i]);
-	writeStorage(tmp.storageBlock / 256);
-	writeStorage(tmp.storageBlock % 256);
-}
-MyFCB* File::locateNowFCB()
-{
-	string fileName, nameCommand;
-	MyFCB* tmpFCB;
-
-	nameCommand = command;//防止命令被破坏
-
-	fileName = findFileName();
-	for (list<MyFCB>::iterator it = FCBList->begin(); it != FCBList->end(); it++)
-	{
-		tmpFCB = &*it;
-		if (strcmp(tmpFCB->name, fileName.c_str()) == 0)return &*it;//确认文件名称正确
-	}
-	command = nameCommand;
-	return NULL;
 }
