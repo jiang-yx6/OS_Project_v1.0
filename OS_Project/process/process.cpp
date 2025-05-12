@@ -12,7 +12,7 @@ int ProcessManager::createProcess(string name, int priority, int operaTime, std:
 	// 将进程信息记录到日志
 	logger->logProcessCreation(name, newpid, priority, operaTime);
 
-	std::cout << "[DEBUG] 当前 processMap 大小: " << processMap.size() << std::endl;
+	//std::cout << "[DEBUG] 当前 processMap 大小: " << processMap.size() << std::endl;
 	// 如果是第一个进程，直接调度执行
 	if (processMap.size() == 1) {
 		logger->logScheduling(name, newpid);
