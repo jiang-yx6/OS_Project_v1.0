@@ -37,6 +37,8 @@ class File
 public:
 	File();
 
+	ProcessManager pm;
+
 	//以选定条件定位已加载FCB块，返回该块在list的位置
 	//int blockType;//记录当前加载的block块的类别，1：目录块，0：文件块
 	//加一个定位FCBList中文件名--locateBlock和commandDeletePath

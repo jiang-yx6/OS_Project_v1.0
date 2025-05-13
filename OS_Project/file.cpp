@@ -48,18 +48,20 @@ void File::fileControl()
 " << endl;
 
 	while (1) {
+		this_thread::sleep_for(chrono::milliseconds(2000));  // 每50毫秒检查一次
+		pm.checkAndHandleTimeSlice();
 		cout << "[" << userName << "@" << path << "]>";
 		getCommand();
 		findString(1);
 
 		if (!command.empty())
 		{
-			if (command == "cd")commandChangePath();
-			if (command == "ls")commandShowPathFile();
-			if (command == "mkdir")commandCreatePath();
-			if (command == "rmdir")commandDeletePath();
-			if (command == "mkfile")commandCreateFile();
-			if (command == "permission")commandChangePermission();
+			if (command == "cd")pm.createProcess("cd", 1, 1, [&] {commandChangePath(); });
+			if (command == "ls")pm.createProcess("ls", 1, 1, [&] {commandShowPathFile(); });
+			if (command == "mkdir")pm.createProcess("mkdir", 1, 1, [&] {commandCreatePath(); });
+			if (command == "rmdir")pm.createProcess("rmdir", 1, 1, [&] {commandDeletePath(); });
+			if (command == "mkfile")pm.createProcess("mkfile", 1, 1, [&] {commandCreateFile(); });
+			if (command == "permission")pm.createProcess("permission", 1, 1, [&] {commandChangePermission(); });
 			if (command == "logout") break;
 		}
 	}

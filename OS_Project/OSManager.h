@@ -9,7 +9,10 @@ public:
 	ProcessManager pm;
 
 	void mainControl() {
-		//cin.get();//清除主函数中未处理的换行符
+
+		file.loginIn();
+
+		/*//cin.get();//清除主函数中未处理的换行符
 
 		//system("cls");
 		bool cycleFlag;
@@ -75,7 +78,7 @@ public:
 				}
 			}
 
-		}
+		}*/
 	}
 
 };
