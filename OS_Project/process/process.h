@@ -96,13 +96,14 @@ public:
             while (running) 
             {
                 if (callback) {
-                    std::cout << "[DEBUG] Timer callback triggered" << std::endl;
+                    //std::cout << "[DEBUG] Timer callback triggered" << std::endl;
                     callback();
                 }
                 this_thread::sleep_for(chrono::milliseconds(milliseconds));
                 if (running) {
                     time_slice_expired = true;
-                    std::cout << "[DEBUG] Time slice expired flag set to true" << std::endl;
+                    running = false;
+                    //std::cout << "[DEBUG] Time slice expired flag set to true" << std::endl;
                 }
             }
         });
@@ -157,11 +158,11 @@ public:
         timeSlice = 1;
 
         logger = Logger::getInstance();
-        std::cout << "【调试】当前调度策略是: "
+        /*std::cout << "【调试】当前调度策略是: "
             << (policy == SchedulePolicy::SJF ? "SJF" :
                 policy == SchedulePolicy::FCFS ? "FCFS" :
                 policy == SchedulePolicy::RR ? "Round Robin" : "PRIORITY")
-            << std::endl;
+            << std::endl;*/
 
         //// 设置定时器的回调函数
         //scheduleTimer->setCallBack([this]() { this->timeSliceExpired(); });
