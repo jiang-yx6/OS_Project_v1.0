@@ -142,3 +142,34 @@ void ProcessManager::addToReadyQueue(PCB* process) {
 		break;
 	}
 }
+
+void ProcessManager::timeSliceMonitorFunc() {
+	while (isMonitorRunning.load()) {
+		if (hasProcesses()) {
+			bool timeSliceExpired = checkAndHandleTimeSlice();
+			if (!timeSliceExpired) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			}
+		}
+		else {
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
+	}
+}
+
+void ProcessManager::startTimeSliceMonitor() {
+	if (!isMonitorRunning.load()) {
+		isMonitorRunning.store(true);
+		timeSliceMonitorThread = std::thread(&ProcessManager::timeSliceMonitorFunc, this);
+	}
+}
+
+void ProcessManager::stopTimeSliceMonitor() {
+	if (isMonitorRunning.load()) {
+		isMonitorRunning.store(false);
+		if (timeSliceMonitorThread.joinable()) {
+			timeSliceMonitorThread.join();
+		}
+	}
+}
+
