@@ -28,7 +28,7 @@ string MyFCB::charToTime(unsigned char* time)
 MyFCB::MyFCB(char* input)
 {
 	createFlag = input[0] & 0b10000000;
-	typeFlag = input[0] & 0b01000000;
+	isPath = input[0] & 0b01000000;
 	isReadable = input[0] & 0b00100000;
 	isWritable = input[0] & 0b00010000;
 	owner = input[0] & 0b00001111;
@@ -40,7 +40,7 @@ MyFCB::MyFCB(char* input)
 MyFCB::MyFCB(bool type, int owner, string inputName)
 {
 	createFlag = true;
-	typeFlag = type;
+	isPath = type;
 	isReadable = false;
 	isWritable = false;
 	this->owner = owner;
@@ -53,7 +53,7 @@ MyFCB::MyFCB(bool type, int owner, string inputName)
 char* MyFCB::toString() const
 {
 	char* output = new char[64];
-	output[0] = ((createFlag ? 1 : 0) << 7) + ((typeFlag ? 1 : 0) << 6) + ((isReadable ? 1 : 0) << 5) + ((isWritable ? 1 : 0) << 4) + owner;
+	output[0] = ((createFlag ? 1 : 0) << 7) + ((isPath ? 1 : 0) << 6) + ((isReadable ? 1 : 0) << 5) + ((isWritable ? 1 : 0) << 4) + owner;
 	for (size_t i = 0; i < 49; i++) output[i + 1] = name[i];
 	for (size_t i = 0; i < 6; i++) output[i + 50] = createTime[i];
 	for (size_t i = 0; i < 6; i++) output[i + 56] = changeTime[i];
@@ -69,9 +69,9 @@ bool MyFCB::getCreateFlag() const
 {
 	return createFlag;
 }
-bool MyFCB::getTypeFlag() const
+bool MyFCB::getIsPath() const
 {
-	return typeFlag;
+	return isPath;
 }
 void MyFCB::setIsReadable(bool isReadable)
 {

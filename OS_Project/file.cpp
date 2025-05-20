@@ -48,7 +48,7 @@ void File::fileControl()
 " << endl;
 
 	while (1) {
-		this_thread::sleep_for(chrono::milliseconds(2000));  // 每50毫秒检查一次
+		this_thread::sleep_for(chrono::milliseconds(200));  // 每50毫秒检查一次
 		pm.checkAndHandleTimeSlice();
 		cout << "[" << userName << "@" << path << "]>";
 		getCommand();
@@ -56,12 +56,16 @@ void File::fileControl()
 
 		if (!command.empty())
 		{
-			if (command == "cd")pm.createProcess("cd", 1, 1, [&] {commandChangePath(); });
-			if (command == "ls")pm.createProcess("ls", 1, 1, [&] {commandShowPathFile(); });
-			if (command == "mkdir")pm.createProcess("mkdir", 1, 1, [&] {commandCreatePath(); });
-			if (command == "rmdir")pm.createProcess("rmdir", 1, 1, [&] {commandDeletePath(); });
-			if (command == "mkfile")pm.createProcess("mkfile", 1, 1, [&] {commandCreateFile(); });
-			if (command == "permission")pm.createProcess("permission", 1, 1, [&] {commandChangePermission(); });
+			if (command == "cd")/*pm.createProcess("cd", 1, 1, [&] {*/commandChangePath();/* });*/
+			if (command == "ls")/*pm.createProcess("ls", 1, 1, [&] {*/commandShowPathFile();/* });*/
+			if (command == "mkdir")/*pm.createProcess("mkdir", 1, 1, [&] {*/commandCreatePath();/* });*/
+			if (command == "rmdir")/*pm.createProcess("rmdir", 1, 1, [&] {*/commandDeletePath();/* });*/
+			if (command == "mkfile")/*pm.createProcess("mkfile", 1, 1, [&] {*/commandCreateFile();/* });*/
+			if (command == "rmfile") commandDeleteFile();
+			if (command == "permission")/*pm.createProcess("permission", 1, 1, [&] {*/commandChangePermission();/* });*/
+			if (command == "echo")commandWriteFile();
+			if (command == "cat")commandShowFile();
+			if (command == "vim")commandVim();
 			if (command == "logout") break;
 		}
 	}
@@ -103,14 +107,14 @@ void File::commandShowPathFile()
 	for (MyFCB* tmpFCB = FCBList->firstFCB; tmpFCB != nullptr; tmpFCB = tmpFCB->next)
 	{
 		cout << "  ";
-		if (tmpFCB->getTypeFlag()) cout << "目录";
+		if (tmpFCB->getIsPath()) cout << "目录";
 		else cout << "文件";
 		cout << "      ";
 		cout.width(NAME_LEN);
 		cout.flags(ios::left);
 		cout << tmpFCB->getName();
 		cout << "";
-		if (!(tmpFCB->getTypeFlag()))
+		if (!(tmpFCB->getIsPath()))
 		{
 			if ((tmpFCB->getOwner()) == userId) cout << "拥有";
 			else switch ((tmpFCB->getIsReadable() ? 1 : 0) * 2 + (tmpFCB->getIsWritable() ? 1 : 0))
@@ -151,7 +155,7 @@ void File::commandCreatePath()
 		FCBList->addFCB(tmp);
 
 		writeFCBBlocks(FCBList);
-		readFCBBlocks(FCBList->getCurrentBlock());
+		FCBList = readFCBBlocks(FCBList->getCurrentBlock());
 	}
 
 }
@@ -169,7 +173,7 @@ void File::commandCreateFile()
 		FCBList->addFCB(tmp);
 
 		writeFCBBlocks(FCBList);
-		readFCBBlocks(FCBList->getCurrentBlock());
+		FCBList = readFCBBlocks(FCBList->getCurrentBlock());
 	}
 
 }
@@ -191,7 +195,7 @@ void File::commandDeletePath()
 			cout << "路径不正确！" << endl;
 			return;
 		}
-		else if (!tmp->firstFCB->getTypeFlag())
+		else if (!tmp->firstFCB->getIsPath())
 		{
 			cout << "目标不是一个文件目录" << endl;
 			return;
@@ -209,7 +213,37 @@ void File::commandDeletePath()
 
 		tmp->delFCB(fileBlock);
 		writeFCBBlocks(tmp);
+		FCBList = readFCBBlocks(FCBList->getCurrentBlock());
 	}
+}
+void File::commandDeleteFile()
+{
+	int fileBlock;
+	MyFCBHead* tmp;
+
+	findString(2);
+	if (command.empty()) cout << "缺少参数" << endl;
+
+	tmp = readPathFCB(command);
+	if (tmp == nullptr)
+	{
+		cout << "路径不正确！" << endl;
+		return;
+	}
+	else if (tmp->firstFCB->getIsPath())
+	{
+		cout << "目标不是一个文件" << endl;
+		return;
+	}
+	fileBlock = tmp->firstFCB->getStorageBlock();
+	tmp = readFCBBlocks(tmp->getCurrentBlock());
+
+	for (int i = getFileTotalLen(fileBlock); i > 0; i--) subFileTotalLen(fileBlock);
+	clearBlock(fileBlock);
+
+	tmp->delFCB(fileBlock);
+	writeFCBBlocks(tmp);
+	FCBList = readFCBBlocks(FCBList->getCurrentBlock());
 }
 void File::commandChangePermission()
 {
@@ -220,13 +254,13 @@ void File::commandChangePermission()
 		cout << "路径不正确" << endl;
 		return;
 	}
-	tmp = readFCBBlocks(tmp->getParentBlock());
+	tmp = readFCBBlocks(tmp->getCurrentBlock());
 	MyFCB* tmpFCB = tmp->findFCB(command);
 	if (tmpFCB->getOwner() != userId)
 	{
 		cout << "无修改权限" << endl;
 	}
-	else if (tmpFCB->getTypeFlag())
+	else if (tmpFCB->getIsPath())
 	{
 		cout << "对象为一个目录" << endl;
 	}
@@ -237,6 +271,180 @@ void File::commandChangePermission()
 		tmpFCB->setIsWritable(input[1] - '0');
 		writeFCBBlocks(tmp);
 	}
+}
+void File::commandWriteFile()
+{
+	MyFCBHead* tmp;
+
+	findString(2);
+	if (command.empty())
+	{
+		cout << "缺少参数" << endl;
+		return;
+	}
+	tmp = readPathFCB(command);
+	if (tmp == nullptr || tmp->firstFCB->getIsPath())
+	{
+		cout << "路径不正确" << endl;
+		return;
+	}
+
+	string::iterator pos = input.begin();
+	int blockNum = tmp->firstFCB->getStorageBlock();
+
+	for (size_t i = 0; i < 2; i++)
+	{
+		while (pos != input.end() && *pos == ' ') pos++;
+		while (pos != input.end() && *pos != ' ') pos++;
+	}
+	while (pos != input.end() && *pos == ' ') pos++;
+
+	while (pos != input.end())
+	{
+		addFileData(blockNum,getFileTotalLen(blockNum), *pos);
+		pos++;
+	}
+	addFileData(blockNum, getFileTotalLen(blockNum), '\n');
+}
+void File::commandShowFile()
+{
+	MyFCBHead* tmp;
+
+	findString(2);
+	if (command.empty())
+	{
+		cout << "缺少参数" << endl;
+		return;
+	}
+	tmp = readPathFCB(command);
+	if (tmp == nullptr || tmp->firstFCB->getIsPath())
+	{
+		cout << "路径不正确" << endl;
+		return;
+	}
+	showFile(tmp->firstFCB->getStorageBlock());
+
+}
+void File::commandVim()
+{
+	MyFCBHead* tmp;
+
+	findString(2);
+	if (command.empty())
+	{
+		cout << "缺少参数" << endl;
+		return;
+	}
+	tmp = readPathFCB(command);
+	if (tmp == nullptr || tmp->firstFCB->getIsPath())
+	{
+		cout << "路径不正确" << endl;
+		return;
+	}
+
+
+	int pos = 0, col = 0, row = 0;
+	int blockNum = tmp->firstFCB->getStorageBlock();
+	int totalLen,i;
+	bool endFlag = false;
+	unsigned char input;
+
+	while(!endFlag){
+		system("cls");
+		totalLen = getFileTotalLen(blockNum);
+		for (size_t i = 0; i < totalLen; i++)
+		{
+			if (i == pos) 
+			{
+				if(readFile(blockNum,i)=='\n')cout << "\033[7m \033[0m" << readFile(blockNum, i);
+				else cout << "\033[7m" << readFile(blockNum, i) << "\033[0m";
+			}
+			else cout << readFile(blockNum, i);
+		}
+		if (pos == totalLen)cout << "\033[7m \033[0m";
+
+		input = _getch();
+		switch (input)
+		{
+		case 8:if (pos == 0)break;
+			if (readFile(blockNum, pos - 1) == '\n')
+			{
+				col--;
+				int i = pos - 1;
+				while (i != 0 && readFile(blockNum, i - 1) != '\n')
+				{
+					i--;
+					row++;
+				}
+			}
+			delFileData(blockNum, pos - 1);
+			pos--;
+			break;
+		case 13:
+			addFileData(blockNum, pos, '\n');
+			pos++;
+			row = 0;
+			col++;
+			break;
+		case 27:endFlag = true;
+			break;
+		case 224://上下左右--HPKM
+			input = _getch();
+			switch (input)
+			{
+			case 'H':if (col == 0)break;
+				col--;
+				while (readFile(blockNum, pos - 1) != '\n') pos--;
+				pos--;
+				while (pos != 0 && readFile(blockNum, pos - 1) != '\n') pos--;
+				i = row;
+				row = 0;
+				for (; row < i && readFile(blockNum, pos) != '\n'; row++) pos++;
+				break;
+			case 'P':
+				while (readFile(blockNum, pos) != '\n')
+				{
+					if (pos == totalLen)break;
+					pos++;
+				}
+				if (pos == totalLen)break;
+				pos++;
+				col++;
+				i = row;
+				row = 0;
+				for (; row < i && readFile(blockNum, pos) != '\n'; row++) pos++;
+				break;
+			case 'K':if (pos == 0)break;
+				if (readFile(blockNum, pos - 1) == '\n')
+				{
+					col--;
+					int i = pos - 1;
+					while (i != 0 && readFile(blockNum, i - 1) != '\n')
+					{
+						i--;
+						row++;
+					}
+				}
+				else row--;
+				pos--;
+				break;
+			case 'M':if (pos == totalLen)break;
+				pos++;
+				if (readFile(blockNum, pos - 1) == '\n')
+				{
+					col++;
+					row = 0;
+				}
+				else row++;
+			}
+			break;
+		default:
+			addFileData(blockNum, pos, input);
+			pos++;
+			row++;
+		}
+	}
+	system("cls");
 }
 void File::loadMainPath()
 {
@@ -278,7 +486,7 @@ MyFCBHead* File::readPathFCB(string filePath)
 			if (tmpFCB == nullptr || !tmpFCB->getCreateFlag()) return nullptr;
 			fileName = findFirstFileName(&filePath);
 			if (fileName.empty()) break;
-			if (!tmpFCB->getTypeFlag() || tmpFCB->getStorageBlock() == 0) return nullptr;//下一个要打开的目标不为文件夹
+			if (!tmpFCB->getIsPath() || tmpFCB->getStorageBlock() == 0) return nullptr;//下一个要打开的目标不为文件夹
 			tmp = readFCBBlocks(tmpFCB->getStorageBlock());
 		}
 	}
@@ -289,7 +497,7 @@ MyFCBHead* File::readPathFCBFile(string filePath)
 {
 	if (filePath=="~") return readFCBBlocks(1);
 	MyFCBHead* tmp = readPathFCB(filePath);
-	if (tmp == nullptr)return nullptr;
+	if (tmp == nullptr||!tmp->firstFCB->getIsPath())return nullptr;
 	return readFCBBlocks(tmp->firstFCB->getStorageBlock());
 }
 string File::findFirstFileName(string* input)
@@ -492,6 +700,99 @@ void File::findString(int num)
 
 }
 
+inline char* File::readFileLine(int blockNum, int pos, int len)
+{
+
+}
+void File::showFile(int blockNum)
+{
+	int totalLen = getFileTotalLen(blockNum);
+	for (size_t i = 0; i < totalLen; i++) cout << readFile(blockNum, i);
+	cout << endl;
+}
+inline void File::addFileData(int blockNum, int pos, char input)
+{
+	for (int totalLen = getFileTotalLen(blockNum); pos < totalLen; pos++)
+	{
+		char tmp = readFile(blockNum, pos);
+		writeFile(blockNum, pos, input);
+		input = tmp;
+	}
+	addFileTotalLen(blockNum);
+	writeFile(blockNum, getFileTotalLen(blockNum) - 1, input);
+}
+inline void File::delFileData(int blockNum, int pos)
+{
+	for (int totalLen = getFileTotalLen(blockNum); pos + 1 < totalLen; pos++) writeFile(blockNum, pos, readFile(blockNum, pos + 1));
+	subFileTotalLen(blockNum);
+}
+inline void File::addFileTotalLen(int blockNum)
+{
+	int tmp = getFileTotalLen(blockNum);
+	if (tmp % 4094 == 0) addBlock(blockNum);
+	writeFile(blockNum, tmp, 0);
+	tmp++;
+	setFileTotalLen(blockNum, tmp);
+}
+inline void File::subFileTotalLen(int blockNum)
+{
+	int tmp = getFileTotalLen(blockNum);
+	if (tmp % 4094 == 1) delBlock(blockNum);
+	tmp--;
+	setFileTotalLen(blockNum, tmp);
+}
+inline unsigned char File::readFile(int blockNum, int pos)
+{
+	return readStorage(locateFileBlock(blockNum, pos), locateFilePos(blockNum, pos));
+}
+inline void File::writeFile(int blockNum, int pos, unsigned char input)
+{
+	writeStorage(input, locateFileBlock(blockNum, pos), locateFilePos(blockNum, pos));
+}
+inline int File::getFileTotalLen(int blockNum)
+{
+	unsigned char* tmp = (unsigned char*)readLine(blockNum, 3, 3);
+	return tmp[0] * 65536 + tmp[1] * 256 + tmp[2];
+}
+inline void File::setFileTotalLen(int blockNum,int len)
+{
+	char tmp[3] = { len / 65536,len % 65536 / 256,len % 256 };
+	writeLine(tmp, blockNum, 3, 3);
+}
+inline void File::addBlock(int blockNum)
+{
+	int newBlockNum = findNewBlock();
+	setBlockStage(newBlockNum, true);
+	char tmp[2] = { newBlockNum / 256,newBlockNum % 256 };
+	writeLine(tmp, blockNum, getFileTotalLen(blockNum) / 4094 * 2 + 6, 2);
+}
+inline void File::delBlock(int blockNum)
+{
+	clearBlock(locateFileBlock(blockNum, getFileTotalLen(blockNum)));
+	char tmp[2] = { 0 };
+	writeLine(tmp, blockNum, getFileTotalLen(blockNum) / 4094 * 2 + 6, 2);
+}
+inline void File::setFileParentBlock(int blockNum, int parentNum)
+{
+	char input[2] = { parentNum % 256,parentNum / 256 };
+	writeLine(input, blockNum, 2, 2);
+}
+inline int File::getFileParentBlock(int blockNum)
+{
+	unsigned char* output;
+	output = (unsigned char*)readLine(blockNum, 2, 2);
+	return output[1] * 256 + output[0];
+}
+inline int File::locateFileBlock(int blockNum, int pos)
+{
+	unsigned char* block = (unsigned char*)readLine(blockNum, pos / 4094 * 2 + 6, 2);
+	return block[0] * 256 + block[1];
+}
+inline int File::locateFilePos(int blockNum, int pos)
+{
+	return pos % 4094 + 2;
+}
+
 inline void File::writeFCB(int blockNum, int FCBNum, MyFCB* input)
 {
 	writeLine(input->toString(), blockNum, FCBNum * 64, 64);
@@ -531,8 +832,8 @@ inline void File::setPathParentBlock(int blockNum, int parentNum)
 }
 inline int File::getPathParentBlock(int blockNum)
 {
-	char* output;
-	output = readLine(blockNum, 4, 2);
+	unsigned char* output;
+	output = (unsigned char*)readLine(blockNum, 4, 2);
 	return output[1] * 256 + output[0];
 }
 

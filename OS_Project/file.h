@@ -3,6 +3,7 @@
 #include <string>
 #include<fstream>
 #include <list>
+#include <conio.h>
 #include "MyFCB.h"
 #include "User.h"
 #include "process/process.h"
@@ -19,7 +20,7 @@ using namespace std;
 
 /*第一个字为1代表已使用
 * 目录块：目录块：64字节为一个FCB块，留空一个FCB块的开头，前两个字节空出
-* 索引块：前二个字节空出
+* 索引块：前四个字节空出
 * 文件块：前二个字节空出
 */
 
@@ -27,6 +28,7 @@ using namespace std;
 * 不分级
 * 第一个字为块使用符号
 * 第二个字为父块块号
+* 三，四个字为文件总长度
 */
 
 //每块4KB---可同时索引2008块，单文件最大约8MB
@@ -36,7 +38,7 @@ class File
 {
 public:
 	File();
-
+private:
 	ProcessManager pm;
 
 	//以选定条件定位已加载FCB块，返回该块在list的位置
@@ -45,7 +47,7 @@ public:
 	//检测字符串分段数目
 	//修改所有使用cin的语句
 	//需防止删掉打开的文件
-
+public:
 	//登录控制
 	void loginIn();
 
@@ -62,8 +64,17 @@ public:
 	void commandCreateFile();
 	//删除指定的目录，该目录必须为空目录
 	void commandDeletePath();
+	//删除指定文件
+	void commandDeleteFile();
 	//更改文件权限
 	void commandChangePermission();
+	//向文件写入内容
+	void commandWriteFile();
+	//输出文件内容
+	void commandShowFile();
+	//模拟VIM功能
+	void commandVim();
+private:
 	//记录主路径
 	string path;
 	//记录当前路径下FCB内容
@@ -80,7 +91,7 @@ public:
 	//读取路径指向的FCB块，返回到firstFCB中，返回其所在块到currentBlock中，返回nullptr为读取失败，根目录无FCB，不应读取
 	MyFCBHead* readPathFCB(string);
 	//读取路径指向的文件夹，返回FCBList
-	MyFCBHead* readPathFCBFile(string filePath);
+	MyFCBHead* readPathFCBFile(string);
 	//查找input中的第一个文件名
 	string findFirstFileName(string*);
 	//向blockNum块连续写入input的所有内容，使用后应当使用readFCBBlocks来刷新input中数据
@@ -101,8 +112,41 @@ public:
 	//查找出为被使用的id创建User，查找失败返回nullptr
 	User* getNewUser();
 	/*										*/
-	//查找input中第num个字符串
+	//查找input中第num个字符串，写入到command中
 	void findString(int);
+
+	//输入文件索引所在的块号以及文件指定起始位置字符的编号与读取长度，返回读取的结果，出错返回nullptr，不足则以'\0'补充
+	char* readFileLine(int, int, int);
+	//显示文件内容到屏幕上
+	void showFile(int blockNum);
+	//向文件中指定位置添加内容
+	void addFileData(int,int,char);
+	//删除文件中指定位置的内容
+	void delFileData(int,int);
+	//设置文件总长度加1，按需新建新块
+	void addFileTotalLen(int);
+	//设置文件总长度减1，同时删除多余的块
+	void subFileTotalLen(int);
+	//读取返回文件中指定位置的内容
+	unsigned char readFile(int, int);
+	//向文件中指定位置写入内容
+	void writeFile(int,int,unsigned char);
+	//获取文件总长度
+	int getFileTotalLen(int);
+	//设置文件总长度
+	void setFileTotalLen(int,int);
+	//向文件最后添加块
+	void addBlock(int);
+	//删除文件最后的块
+	void delBlock(int);
+	//设置文件路径记录blockNum中文件的父块
+	void setFileParentBlock(int,int);
+	//获取文件路径记录blockNum中文件的父块
+	int getFileParentBlock(int);
+	//定位pos在文件中对应的块
+	int locateFileBlock(int,int);
+	//定位pos在文件中对应的块中的位置，编号从0开始
+	int locateFilePos(int,int);
 
 	//向blockNum块FCBNum位置写入FCB，编号为0~64
 	void writeFCB(int, int, MyFCB*);
@@ -114,10 +158,10 @@ public:
 	void setNextFCBBlock(int, int);
 	//读取block块的下一个块，为0则不存在
 	int getNextFCBBlock(int);
-	//设置记录blockNum中目录的父块
+	//设置路径记录blockNum中目录的父块
 	void setPathParentBlock(int, int);
-	//获取记录blockNum中目录的父块
-	int getPathParentBlock(int blockNum);
+	//获取路径记录blockNum中目录的父块
+	int getPathParentBlock(int);
 
 	//删除指定id处user的数据
 	void deleteUser(int);

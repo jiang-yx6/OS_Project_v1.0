@@ -20,7 +20,7 @@ class MyFCB
 	static string charToTime(unsigned char*);
 	bool createFlag;
 	//为false则为文件，为true则为文件夹
-	bool typeFlag;
+	bool isPath;
 	bool isReadable;
 	bool isWritable;
 	int owner;
@@ -36,7 +36,7 @@ public:
 	char* toString() const;
 	void deleteFCB();
 	bool getCreateFlag() const;
-	bool getTypeFlag() const;
+	bool getIsPath() const;
 	void setIsReadable(bool);
 	bool getIsReadable() const;
 	void setIsWritable(bool);
