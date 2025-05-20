@@ -73,7 +73,11 @@ void File::fileControl()
 			if (command == "mkdir")pm.createProcess("mkdir", 1, 1, [&] {commandCreatePath(); });
 			if (command == "rmdir")pm.createProcess("rmdir", 1, 1, [&] {commandDeletePath(); });
 			if (command == "mkfile")pm.createProcess("mkfile", 1, 1, [&] {commandCreateFile(); });
+			if (command == "rmfile")commandDeleteFile();
 			if (command == "permission")pm.createProcess("permission", 1, 1, [&] {commandChangePermission(); });
+			if (command == "echo")commandWriteFile();
+			if (command == "cat")commandShowFile();
+			if (command == "vim")commandVim();
 			if (command == "logout") break;
 		}
 	}
