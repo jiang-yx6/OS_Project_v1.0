@@ -96,15 +96,13 @@ public:
             while (running) 
             {
                 if (callback) {
-                    //std::cout << "[DEBUG] Timer callback triggered" << std::endl;
                     callback();
+                    std::cout << "son Thread get outputMutex" << std::endl;
                 }
                 this_thread::sleep_for(chrono::milliseconds(milliseconds));
-                if (running) {
-                    time_slice_expired = true;
-                    running = false;
-                    //std::cout << "[DEBUG] Time slice expired flag set to true" << std::endl;
-                }
+
+                time_slice_expired = true;
+                running = false;
             }
         });
     }
@@ -140,8 +138,8 @@ private:
     unordered_map<int, PCB*> processMap;
     priority_queue<PCB*, vector<PCB*>, Comparator> readyQueue; //就绪队列
     priority_queue<PCB*, vector<PCB*>, SJFComparator> sjfQueue; // 短作业优先队列
-    queue<PCB*> blockQueue; //阻塞队列
     queue<PCB*> fcfsQueue; // FCFS 队列
+    queue<PCB*> blockQueue; //阻塞队列
     deque<PCB*> rrQueue;    // 时间片轮转队列
     PCB* runningProcess; //当前正在运行进程
     int nextPid;
@@ -150,22 +148,21 @@ private:
     Timer* scheduleTimer;
     Logger* logger;
     SchedulePolicy policy;
+
+    
+
+    //添加互斥锁和线程监控变量 
+    std::mutex outputMutex;
+    std::atomic<bool> isMonitorRunning;
+    std::thread timeSliceMonitorThread;
 public:
-    ProcessManager(SchedulePolicy p = SchedulePolicy::PRIORITY) : policy(p) {
+    ProcessManager(SchedulePolicy p = SchedulePolicy::PRIORITY) : policy(p),isMonitorRunning(false) {
         nextPid = 0;
         runningProcess = nullptr;
         scheduleTimer = new Timer();
         timeSlice = 1;
 
         logger = Logger::getInstance();
-        /*std::cout << "【调试】当前调度策略是: "
-            << (policy == SchedulePolicy::SJF ? "SJF" :
-                policy == SchedulePolicy::FCFS ? "FCFS" :
-                policy == SchedulePolicy::RR ? "Round Robin" : "PRIORITY")
-            << std::endl;*/
-
-        //// 设置定时器的回调函数
-        //scheduleTimer->setCallBack([this]() { this->timeSliceExpired(); });
     }
 
     bool hasProcesses() const {
@@ -185,8 +182,19 @@ public:
 
     void timeSliceExpired();
     void addToReadyQueue(PCB* ptr);
+
+
+    void timeSliceMonitorFunc();
+    void startTimeSliceMonitor();
+    void stopTimeSliceMonitor();
+
+
+    std::mutex& getOutputMutex() {
+        return outputMutex;
+    }
     // 添加析构函数到ProcessManager类
     ~ProcessManager() {
+        stopTimeSliceMonitor();
         // 先停止定时器
         if (scheduleTimer) {
             scheduleTimer->stop();

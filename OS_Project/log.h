@@ -58,7 +58,7 @@ private:
 
         // 输出到文件和控制台
         logFile << nocolorMessage << std::endl;
-        std::cout << coloredMessage << std::endl;
+        //std::cout << coloredMessage << std::endl;
     }
 
 public:
