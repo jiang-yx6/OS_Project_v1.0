@@ -22,7 +22,8 @@ exit:退出程序\
 	while (1) {
 		cout << "请选择操作:";
 		cin >> input;
-		if (input == "login") { if (commandLogin()) fileControl(); }
+		if (input == "login") { if (commandLogin()) 
+			fileControl(); }
 		else if (input == "show") commandShowUser();
 		else if (input == "create")commandCreateUser();
 		else if (input == "delete")commandDeleteUser();
@@ -66,10 +67,20 @@ void File::fileControl()
 				std::lock_guard<std::mutex> lock(pm.getOutputMutex());
 				commandChangePath(); 
 				});
-			if (command == "ls")pm.createProcess("ls", 1, 1, [&] {
-				commandShowPathFile();
-				std::lock_guard<std::mutex> lock(pm.getOutputMutex());
-				});
+			if (command == "ls") {
+				pm.createProcess("ls", 1, 2, [&] {
+					std::lock_guard<std::mutex> lock(pm.getOutputMutex());
+					commandShowPathFile();
+					});
+				pm.createProcess("ls", 1, 3, [&] {
+					std::lock_guard<std::mutex> lock(pm.getOutputMutex());
+					commandShowPathFile();
+					});
+				pm.createProcess("ls", 1, 1, [&] {
+					std::lock_guard<std::mutex> lock(pm.getOutputMutex());
+					commandShowPathFile();
+					});
+			}
 			if (command == "mkdir")pm.createProcess("mkdir", 1, 1, [&] {commandCreatePath(); });
 			if (command == "rmdir")pm.createProcess("rmdir", 1, 1, [&] {commandDeletePath(); });
 			if (command == "mkfile")pm.createProcess("mkfile", 1, 1, [&] {commandCreateFile(); });

@@ -3,18 +3,18 @@
 int ProcessManager::createProcess(string name, int priority, int operaTime, std::function<void()> func) {
 	int newpid = nextPid++;
 	PCB* newProcess = new PCB(newpid, name, priority, operaTime);
-	scheduleTimer->setCallBack(func);
+	newProcess->registerFunc(func);
 
 	processMap[newpid] = newProcess;
 	// 根据调度策略，将新进程添加到相应的队列
-	addToReadyQueue(newProcess);
+	addToReadyQueue(newpid);
 
 	// 将进程信息记录到日志
 	logger->logProcessCreation(name, newpid, priority, operaTime);
 
 	//std::cout << "[DEBUG] 当前 processMap 大小: " << processMap.size() << std::endl;
 	// 如果是第一个进程，直接调度执行
-	if (processMap.size() == 1) {
+	if (processMap.size() <= 2) {
 		logger->logScheduling(name, newpid);
 		dispatcher(); // 调度该进程
 	}
@@ -22,27 +22,30 @@ int ProcessManager::createProcess(string name, int priority, int operaTime, std:
 	// 返回新进程的 PID
 	return newpid;
 }
+
 void ProcessManager::terminateProcess(int pid) {
 	PCB* process = processMap[pid];
 	process->setState(OVER);
+	historyOverMap[process->getPid()] = process->getName();
 	processMap.erase(pid);
 	delete process;
 }
+
 void ProcessManager::wakeupProcess(int pid) {}
 void ProcessManager::blockProcess(int pid) {}
 void ProcessManager::dispatcher() 
-{
-	if (runningProcess) {
-		scheduleTimer->stop();
-	}
-
+{	
 	PCB* nextProcess = nullptr;
 
 	switch (policy) {
 	case SchedulePolicy::PRIORITY:
 		if (!readyQueue.empty()) {
 			nextProcess = readyQueue.top();
+			cout << "1 ready Queue Size is: "<< readyQueue.size() << endl;
 			readyQueue.pop();
+			cout << "2 ready Queue Size is: " << readyQueue.size() << endl;
+
+			cout << "Dispacher result: "<< nextProcess->getName() << " [" << nextProcess->getPid() << "] is got from READY queue." << std::endl;
 		}
 		break;
 	case SchedulePolicy::SJF:
@@ -66,81 +69,99 @@ void ProcessManager::dispatcher()
 	default:
 		break;
 	}
-
+	
 	if (nextProcess) {
-		runningProcess = nextProcess;
-		runningProcess->setState(RUNNING);
-		logger->logScheduling(runningProcess->getName(), runningProcess->getPid());
-		scheduleTimer->start(TIME_SLICE_MS);
+		cout << "Process " << nextProcess->getName() << " [" << nextProcess->getPid() << "] is going to add to RUN queue." << std::endl;
+		thread_Pool.enqueue(nextProcess);
+		nextProcess->setState(RUNNING);
+		logger->logScheduling(nextProcess->getName(), nextProcess->getPid());
 	}
 	else {
-		runningProcess = nullptr;
+		nextProcess = nullptr;
 	}
 }
-void ProcessManager::timeSliceExpired() 
+void ProcessManager::timeSliceExpired(int outpid) 
 {
-	if (runningProcess) 
-	{
-		runningProcess->decrementRemainTime(); // 减少剩余时间
-		logger->logTimeSlice(runningProcess->getName(),
-			runningProcess->getPid(),
-			runningProcess->getRemainTime());
+	PCB* outPCB = processMap[outpid];
+	if (!outPCB) { cout << "PCB NULL 1" << endl; }
+	outPCB->decrementRemainTime(); // 减少剩余时间
+	cout  << "Process " << outPCB->getName() << " [" << outPCB->getPid() << "] remaining time is " <<outPCB->getRemainTime() << std::endl;
+	logger->logTimeSlice(outPCB->getName(),
+		outPCB->getPid(),
+		outPCB->getRemainTime());
 
-		if (runningProcess->isFinished()) {
-			logger->logProcessCompletion(runningProcess->getName(),
-				runningProcess->getPid());
-			scheduleTimer->stop();
-			terminateProcess(runningProcess->getPid());
-			runningProcess = nullptr;
-			dispatcher();
-		}
-		else if(policy == SchedulePolicy::FCFS)
-		{}
-		else{
-			scheduleTimer->stop();
-			runningProcess->setState(READY);
+	if (outPCB->isFinished()) {
+		cout << "Process " << outPCB->getName() << " [" << outPCB->getPid() << "] has completed." << endl;
 
-			if (policy == SchedulePolicy::RR) {
-				// 将进程重新加入到RR队列的末尾
-				rrQueue.push_back(runningProcess);
-			}
-			else {
-				// 其他调度策略将进程重新加入到相应的队列
-				addToReadyQueue(runningProcess);
-			}
-			runningProcess = nullptr;
-			dispatcher();
+		logger->logProcessCompletion(outPCB->getName(),
+			outPCB->getPid());
+		outPCB->getPTimer()->stop();
+		terminateProcess(outPCB->getPid());
+
+		cout << "ProcessMap Size is: "<<processMap.size()<< endl;
+		dispatcher();
+	}
+	else{
+        cout << "Process " << outPCB->getName() << " ["<< outPCB->getPid() << "] is not over and going to READY" << std::endl;
+		outPCB->getPTimer()->stop();
+		outPCB->setState(READY);
+
+		if (policy == SchedulePolicy::RR) {
+			// 将进程重新加入到RR队列的末尾
+			rrQueue.push_back(outPCB);
 		}
+		else {
+			// 其他调度策略将进程重新加入到相应的队列
+			addToReadyQueue(outpid);
+		}
+		outPCB = nullptr;
+		dispatcher();
 	}
 }
 bool ProcessManager::checkAndHandleTimeSlice() {
 	{
-		if (scheduleTimer->isTimeSliceExpired()) {
-			scheduleTimer->resetTimeSliceFlag();
-			timeSliceExpired();
-			return true;
+		//std::unique_lock<std::mutex> lock(thread_Pool.runningQueueMutex);
+		int size = thread_Pool.comsumed_runningProcess.size();
+		//cout << "Checking Thread get runningQueueMutex And the size is " <<size<< std::endl;
+		for (int i = 0; i < size; i++) {
+			PCB* schedulePCB = thread_Pool.comsumed_runningProcess.front();
+
+			thread_Pool.comsumed_runningProcess.pop(); //弹出执行完的任务。
+
+			if (schedulePCB->getPTimer()->isTimeSliceExpired()) {
+				schedulePCB->getPTimer()->resetTimeSliceFlag();
+				cout << "Process " << schedulePCB->getName() << " [" << schedulePCB->getPid() << "] has time slice expired." << std::endl;
+				timeSliceExpired(schedulePCB->getPid());
+				return true;
+			}
+			else {
+				thread_Pool.comsumed_runningProcess.push(schedulePCB);
+			}
 		}
+		
 		return false;
 	}
 }
-void ProcessManager::addToReadyQueue(PCB* process) {
+void ProcessManager::addToReadyQueue(int pid) {
 	switch (policy) {
 	case SchedulePolicy::PRIORITY:
-		readyQueue.push(process);
+		readyQueue.push(processMap[pid]);
 		break;
 	case SchedulePolicy::SJF:
-		sjfQueue.push(process);
+		sjfQueue.push(processMap[pid]);
 		break;
 	case SchedulePolicy::FCFS:
-		fcfsQueue.push(process);
+		fcfsQueue.push(processMap[pid]);
 		break;
 	case SchedulePolicy::RR:
-		rrQueue.push_back(process);
+		rrQueue.push_back(processMap[pid]);
 		break;
 	default:
 		// 默认处理，可选择抛出异常或其他处理方式
 		break;
 	}
+
+	cout << "Process " << processMap[pid]->getName() << " [" << processMap[pid]->getPid() << "] is added to READY queue." << std::endl;
 }
 
 void ProcessManager::timeSliceMonitorFunc() {
@@ -148,11 +169,11 @@ void ProcessManager::timeSliceMonitorFunc() {
 		if (hasProcesses()) {
 			bool timeSliceExpired = checkAndHandleTimeSlice();
 			if (!timeSliceExpired) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 			}
 		}
 		else {
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			std::this_thread::sleep_for(std::chrono::milliseconds(200));
 		}
 	}
 }
