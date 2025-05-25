@@ -51,6 +51,9 @@ int MemoryManager::allocatePhysicalBlock() {
             std::cout << "使用Next-Fit策略分配了物理块 " << blockNumber << std::endl;
         }
         break;
+    case AllocationStrategy::QuickFit:  // 新增这一项
+        blockNumber = allocateWithQuickFit();
+        break;
     }
 
     return blockNumber;
@@ -160,6 +163,7 @@ int MemoryManager::allocateWithNextFit() {
     return -1;  // 没有空闲块
 }
 
+
 // 释放一个物理块
 void MemoryManager::freePhysicalBlock(int physicalBlockNumber) {
     if (physicalBlockNumber < 0 || physicalBlockNumber >= MEMORY_BLOCKS) {
@@ -176,14 +180,55 @@ void MemoryManager::freePhysicalBlock(int physicalBlockNumber) {
     memory[physicalBlockNumber].virtualPageNumber = -1;
 }
 
-// 页面置换算法
+//// 页面置换算法
+//void MemoryManager::replacePage() {
+//    int physicalBlockNumber = -1;
+//
+//    switch (replacementAlgorithm) {
+//    case ReplacementAlgorithm::FIFO: {
+//        if (fifoQueue.empty()) {
+//            throw std::runtime_error("No pages to replace in FIFO queue.");
+//        }
+//        physicalBlockNumber = fifoQueue.front();
+//        fifoQueue.pop_front();
+//        break;
+//    }
+//    case ReplacementAlgorithm::LRU: {
+//        if (lruList.empty()) {
+//            throw std::runtime_error("No pages to replace in LRU list.");
+//        }
+//        physicalBlockNumber = lruList.front();
+//        lruList.erase(lruList.begin());
+//        break;
+//    }
+//    case ReplacementAlgorithm::Random: {
+//        std::random_device rd;
+//        std::mt19937 gen(rd());
+//        std::uniform_int_distribution<> dist(0, MEMORY_BLOCKS - 1);
+//        do {
+//            physicalBlockNumber = dist(gen);
+//        } while (!memory[physicalBlockNumber].isAllocated);
+//        break;
+//    }
+//    }
+//
+//    // 找到对应的虚拟页号并从页表中移除
+//    int virtualPageNumber = memory[physicalBlockNumber].virtualPageNumber;
+//    if (virtualPageNumber != -1) {
+//        pageTable.erase(virtualPageNumber);
+//    }
+//
+//    // 释放物理块
+//    freePhysicalBlock(physicalBlockNumber);
+//}
 void MemoryManager::replacePage() {
     int physicalBlockNumber = -1;
 
     switch (replacementAlgorithm) {
     case ReplacementAlgorithm::FIFO: {
         if (fifoQueue.empty()) {
-            throw std::runtime_error("No pages to replace in FIFO queue.");
+            std::cout << "No pages available for replacement (FIFO).\n";
+            return;
         }
         physicalBlockNumber = fifoQueue.front();
         fifoQueue.pop_front();
@@ -191,7 +236,8 @@ void MemoryManager::replacePage() {
     }
     case ReplacementAlgorithm::LRU: {
         if (lruList.empty()) {
-            throw std::runtime_error("No pages to replace in LRU list.");
+            std::cout << "No pages available for replacement (LRU).\n";
+            return;
         }
         physicalBlockNumber = lruList.front();
         lruList.erase(lruList.begin());
@@ -208,16 +254,14 @@ void MemoryManager::replacePage() {
     }
     }
 
-    // 找到对应的虚拟页号并从页表中移除
-    int virtualPageNumber = memory[physicalBlockNumber].virtualPageNumber;
-    if (virtualPageNumber != -1) {
-        pageTable.erase(virtualPageNumber);
+    if (physicalBlockNumber != -1) {
+        int virtualPageNumber = memory[physicalBlockNumber].virtualPageNumber;
+        if (virtualPageNumber != -1) {
+            pageTable.erase(virtualPageNumber);
+        }
+        freePhysicalBlock(physicalBlockNumber);
     }
-
-    // 释放物理块
-    freePhysicalBlock(physicalBlockNumber);
 }
-
 // 分配内存给虚拟页号
 bool MemoryManager::allocateMemory(int virtualPageNumber) {
     // 如果虚拟页号已经存在，直接返回
@@ -421,9 +465,7 @@ char* MemoryManager::readBlock(int blockNumber) {
 
 // 将块数据写回磁盘
 void MemoryManager::writeBlock(const char* data, int blockNumber) {
-    // 这里应该实现将数据写回磁盘的代码
-    // 在实际应用中，这会涉及到文件IO操作
-    // 在本示例中我们不执行实际写入
+
 }
 
 // 内存碎片整理
@@ -522,8 +564,11 @@ void MemoryManager::defragmentMemory() {
     printMemoryState();
     printMemoryStatistics();
 }
-void MemoryManager::MemoryManagerTest() {
+//基于搜索的内存管理测试
+void MemoryManager::SearchingBasedTest() {
+
     // 添加选择页面置换算法的功能
+
     int replacementChoice;
     std::cout << "\n--- 请选择页面置换算法 ---\n";
     std::cout << "1: FIFO (先进先出)\n";
@@ -700,5 +745,489 @@ void MemoryManager::MemoryManagerTest() {
     // 打印释放后的内存统计信息
     manager.printMemoryStatistics();
 
+    return;
+}
+// 快速适配（基于空闲块索引）
+int MemoryManager::allocateWithQuickFit() {
+    if (!quickFitInitialized) {
+        // 第一次使用 QuickFit，初始化 freeBlocksMap
+        for (int i = 0; i < MEMORY_BLOCKS; ++i) {
+            if (!memory[i].isAllocated) {
+                quickFitMap[1].push_back(i); // 假设每个块大小为 1
+            }
+        }
+        quickFitInitialized = true;
+    }
+
+    for (auto it = quickFitMap.begin(); it != quickFitMap.end(); ++it) {
+        if (!it->second.empty()) {
+            int blockNumber = it->second.back();
+            it->second.pop_back();
+            memory[blockNumber].isAllocated = true;
+            return blockNumber;
+        }
+    }
+
+    // 如果没有找到可用块，回退到 FirstFit
+    int block = allocateWithFirstFit();
+    if (block != -1) {
+        quickFitMap[1].push_back(block);  // 把新分配的块加入列表
+    }
+    return block;
+}
+int MemoryManager::allocateWithBuddySystem(size_t sizeInBlocks) {
+    if (sizeInBlocks > MEMORY_BLOCKS) return -1;
+
+    int order = 0;
+    while ((1 << order) < sizeInBlocks) ++order;
+
+    for (int i = 0; i < buddyBlocks.size(); ++i) {
+        if (!buddyBlocks[i].isAllocated && buddyBlocks[i].size >= (1 << order)) {
+            while (buddyBlocks[i].size > (1 << order)) splitBlock(i);
+            buddyBlocks[i].isAllocated = true;
+            return i;
+        }
+    }
+    return -1;
+}
+
+// Buddy System 释放
+void MemoryManager::freeWithBuddySystem(int blockIndex) {
+    if (blockIndex >= 0 && blockIndex < buddyBlocks.size()) {
+        buddyBlocks[blockIndex].isAllocated = false;
+        mergeBuddies(blockIndex);
+    }
+}
+
+// 分裂块
+void MemoryManager::splitBlock(int index) {
+    int left = 2 * index + 1;
+    int right = 2 * index + 2;
+
+    if (left >= buddyBlocks.size() || right >= buddyBlocks.size()) {
+        // 在 splitBlock 函数中找到以下行：
+        buddyBlocks.resize(std::max(buddyBlocks.size(), static_cast<size_t>(std::max(left, right)) + 1));
+    }
+
+    buddyBlocks[left] = { buddyBlocks[index].size / 2, false, -1, -1, index, right };
+    buddyBlocks[right] = { buddyBlocks[index].size / 2, false, -1, -1, index, left };
+    buddyBlocks[index].size /= 2;
+}
+
+// 合并伙伴
+void MemoryManager::mergeBuddies(int index) {
+    int buddy = buddyBlocks[index].buddyIndex;
+    int parent = buddyBlocks[index].parent;
+
+    if (parent != -1 &&
+        buddy != -1 &&
+        !buddyBlocks[buddy].isAllocated &&
+        buddyBlocks[buddy].size == buddyBlocks[index].size) {
+
+        buddyBlocks[parent].leftChild = -1;
+        buddyBlocks[parent].rightChild = -1;
+        buddyBlocks[parent].size *= 2;
+        buddyBlocks[parent].isAllocated = false;
+        mergeBuddies(parent);
+    }
+}
+
+//基于索引的内存分配函数测试
+void MemoryManager::IndexBasedTest() {
+    int choice;
+    std::cout << "\n=== Index-Based Memory Management Test ===\n";
+    std::cout << "1. Buddy System Allocation\n";
+    std::cout << "2. Quick Fit Allocation\n";
+    std::cout << "3. Exit\n";
+    std::cout << "Enter your choice (1-3): ";
+    std::cin >> choice;
+
+    switch (choice) {
+    case 1: {
+        // ====== Buddy System Allocation ======
+        std::cout << "\n--- Starting Buddy System Test ---\n";
+
+        maxOrder = 0;
+        int totalBlocks = MEMORY_BLOCKS;
+        while ((1 << maxOrder) < totalBlocks) ++maxOrder;
+        buddyBlocks.clear();
+        buddyBlocks.resize(1 << (maxOrder + 1));
+        buddyBlocks[0] = { totalBlocks, false, -1, -1, -1, -1 };
+
+        std::vector<int> allocatedIndices;
+
+        std::cout << "\n--- Allocating Blocks ---\n";
+        int idx1 = allocateWithBuddySystem(4);
+        std::cout << "[Allocation] Requested block size: 4, Assigned index: " << idx1 << "\n";
+
+        int idx2 = allocateWithBuddySystem(2);
+        std::cout << "[Allocation] Requested block size: 2, Assigned index: " << idx2 << "\n";
+
+        int idx3 = allocateWithBuddySystem(1);
+        std::cout << "[Allocation] Requested block size: 1, Assigned index: " << idx3 << "\n";
+
+        allocatedIndices.push_back(idx1);
+        allocatedIndices.push_back(idx2);
+        allocatedIndices.push_back(idx3);
+
+        std::cout << "\n--- Current Buddy Block Status After Allocation ---\n";
+        for (int i = 0; i < buddyBlocks.size(); ++i) {
+            if (buddyBlocks[i].size > 0) {
+                std::cout << "Index: " << i
+                    << " | Size: " << buddyBlocks[i].size
+                    << " | Allocated: " << (buddyBlocks[i].isAllocated ? "Yes" : "No")
+                    << " | Parent: " << buddyBlocks[i].parent
+                    << " | Left: " << buddyBlocks[i].leftChild
+                    << " | Right: " << buddyBlocks[i].rightChild
+                    << " | Buddy: " << buddyBlocks[i].buddyIndex << "\n";
+            }
+        }
+
+        std::cout << "\n--- Releasing One Block (index: " << idx2 << ") ---\n";
+        if (!allocatedIndices.empty() && allocatedIndices.size() > 1) {
+            freeWithBuddySystem(allocatedIndices[1]);
+        }
+
+        std::cout << "\n--- Buddy Block Status After Freeing Index " << idx2 << " ---\n";
+        for (int i = 0; i < buddyBlocks.size(); ++i) {
+            if (buddyBlocks[i].size > 0) {
+                std::cout << "Index: " << i
+                    << " | Size: " << buddyBlocks[i].size
+                    << " | Allocated: " << (buddyBlocks[i].isAllocated ? "Yes" : "No")
+                    << " | Parent: " << buddyBlocks[i].parent
+                    << " | Left: " << buddyBlocks[i].leftChild
+                    << " | Right: " << buddyBlocks[i].rightChild
+                    << " | Buddy: " << buddyBlocks[i].buddyIndex << "\n";
+            }
+        }
+
+        std::cout << "\n--- Reallocating Block of Size 2 ---\n";
+        int idx4 = allocateWithBuddySystem(2);
+        std::cout << "[Re-allocation] Requested block size: 2, Assigned index: " << idx4 << "\n";
+
+        allocatedIndices.push_back(idx4);
+
+        std::cout << "\n--- Final Buddy Block Status ---\n";
+        for (int i = 0; i < buddyBlocks.size(); ++i) {
+            if (buddyBlocks[i].size > 0) {
+                std::cout << "Index: " << i
+                    << " | Size: " << buddyBlocks[i].size
+                    << " | Allocated: " << (buddyBlocks[i].isAllocated ? "Yes" : "No")
+                    << " | Parent: " << buddyBlocks[i].parent
+                    << " | Left: " << buddyBlocks[i].leftChild
+                    << " | Right: " << buddyBlocks[i].rightChild
+                    << " | Buddy: " << buddyBlocks[i].buddyIndex << "\n";
+            }
+        }
+
+        break;
+    }
+
+    case 2: {
+        std::cout << "\n--- Starting Quick Fit Test ---\n";
+
+        // 清理之前测试可能留下的占用
+        for (int i = 0; i < MEMORY_BLOCKS; ++i) {
+            memory[i].isAllocated = false;
+            memory[i].virtualPageNumber = -1;
+        }
+        pageTable.clear();
+        fifoQueue.clear();
+        lruList.clear();
+
+        // 设置策略和 QuickFit 缓存重置
+        setAllocationStrategy(AllocationStrategy::QuickFit);
+        quickFitMap.clear();           // 清空 QuickFit 缓存
+        quickFitInitialized = false;   // 重置初始化标志
+
+        std::vector<int> quickFitFreeList;
+
+        std::cout << "\n--- Allocating Blocks Using Quick Fit ---\n";
+        for (int i = 0; i < 5; ++i) {
+            int blockNum = allocatePhysicalBlock();
+            if (blockNum != -1) {
+                std::cout << "[QuickFit] Allocated block " << blockNum << " using Quick Fit\n";
+                quickFitFreeList.push_back(blockNum);
+            }
+            else {
+                std::cout << "[QuickFit] Failed to allocate block\n";
+            }
+        }
+        std::cout << "\n--- Freeing Blocks in Reverse Order (Quick Fit) ---\n";
+        for (auto it = quickFitFreeList.rbegin(); it != quickFitFreeList.rend(); ++it) {
+            freePhysicalBlock(*it);
+            std::cout << "[QuickFit] Freed block " << *it << "\n";
+        }
+
+        std::cout << "\n--- Final Memory State After Quick Fit Test ---\n";
+
+        break;
+    }
+    case 3:
+        std::cout << "Exiting Index-Based Test.\n";
+        break;
+
+    default:
+        std::cout << "Invalid choice! Please enter a number between 1 and 3.\n";
+        break;
+    }
+}
+//请求分页式内存测试
+void MemoryManager::PageBasedTest() {
+    std::cout << "\n=== 请求分页式内存管理测试 ===\n";
+
+    // 1. 设置页面替换策略
+    int replaceChoice;
+    std::cout << "选择页面替换算法:\n";
+    std::cout << "1: FIFO\n";
+    std::cout << "2: LRU\n";
+    std::cout << "3: Random\n";
+    std::cout << "请输入编号(1-3): ";
+    std::cin >> replaceChoice;
+
+    ReplacementAlgorithm replaceAlgo;
+    switch (replaceChoice) {
+    case 1:
+        replaceAlgo = ReplacementAlgorithm::FIFO;
+        std::cout << "使用 FIFO 页面替换算法\n";
+        break;
+    case 2:
+        replaceAlgo = ReplacementAlgorithm::LRU;
+        std::cout << "使用 LRU 页面替换算法\n";
+        break;
+    case 3:
+        replaceAlgo = ReplacementAlgorithm::Random;
+        std::cout << "使用 Random 页面替换算法\n";
+        break;
+    default:
+        replaceAlgo = ReplacementAlgorithm::FIFO;
+        std::cout << "默认使用 FIFO 页面替换算法\n";
+    }
+
+    // 创建内存管理器实例
+    MemoryManager manager(replaceAlgo);
+
+    // 2. 分配虚拟页
+    std::vector<int> allocatedPages;
+
+    std::cout << "\n--- 开始分配虚拟页 ---\n";
+    for (int i = 0; i < 10; ++i) {
+        bool success = manager.allocateMemory(i);
+        if (success) {
+            std::cout << "成功将虚拟页 " << i << " 加载到内存\n";
+            allocatedPages.push_back(i);
+        }
+        else {
+            std::cout << "加载虚拟页 " << i << " 失败（内存不足且无法替换）\n";
+        }
+    }
+
+    // 3. 打印当前内存状态
+    std::cout << "\n--- 当前内存状态 ---\n";
+    manager.printMemoryState();
+
+    std::cout << "\n--- 当前页表 ---\n";
+    manager.printPageTable(); // 需要新增此函数来打印页表
+
+    std::cout << "\n--- 内存使用统计 ---\n";
+    manager.printMemoryStatistics();
+
+    // 4. 模拟访问某个页，触发缺页或 LRU 更新
+    int accessPage;
+    std::cout << "\n--- 测试访问某页以触发缺页或更新 LRU ---\n";
+    std::cout << "输入要访问的虚拟页号(0-9): ";
+    std::cin >> accessPage;
+
+    try {
+        char data = manager.getData(accessPage, 0); // 触发访问
+        std::cout << "访问虚拟页 " << accessPage << " 成功，偏移0的数据为: " << data << "\n";
+    }
+    catch (...) {
+        std::cout << "访问虚拟页 " << accessPage << " 失败。\n";
+    }
+
+    std::cout << "\n--- 访问后内存状态 ---\n";
+    manager.printMemoryState();
+
+    std::cout << "\n--- 访问后页表 ---\n";
+    manager.printPageTable();
+
+    // 5. 释放部分页
+    std::cout << "\n--- 开始释放部分页面 ---\n";
+    for (size_t i = 0; i < allocatedPages.size(); i += 2) {
+        manager.freeMemory(allocatedPages[i]);
+        std::cout << "释放虚拟页 " << allocatedPages[i] << "\n";
+    }
+
+    // 6. 再次分配新页，验证回收机制
+    std::cout << "\n--- 再次尝试分配新页面 ---\n";
+    for (int i = 10; i < 15; ++i) {
+        bool success = manager.allocateMemory(i);
+        if (success) {
+            std::cout << "成功将虚拟页 " << i << " 加载到内存\n";
+            allocatedPages.push_back(i);
+        }
+        else {
+            std::cout << "加载虚拟页 " << i << " 失败\n";
+        }
+    }
+    std::cout << "\n--- 开始 20 次随机页面访问测试 ---\n";
+    for (int i = 0; i < 20; ++i) {
+        int randomPage = rand() % 15;
+        std::cout << "访问页面: " << randomPage << " | ";
+
+        try {
+            char data = manager.getData(randomPage, 0);
+            std::cout << "命中，数据为: '" << data << "'\n";
+        }
+        catch (...) {
+            std::cout << "缺页\n";
+        }
+
+        if ((i + 1) % 5 == 0) {
+            std::cout << "--- 第 " << i + 1 << " 次访问后状态 ---\n";
+            manager.printMemoryState();
+            manager.printPageTable();
+            manager.printMemoryStatistics();
+        }
+    }
+
+    // 7. 最终打印结果
+    std::cout << "\n--- 最终内存状态 ---\n";
+    manager.printMemoryState();
+
+
+    std::cout << "\n--- 最终内存统计信息 ---\n";
+    manager.printMemoryStatistics();
+
+    std::cout << "\n=== 请求分页式内存管理测试结束 ===\n";
+}
+//段页式内存测试
+void MemoryManager::SegmentBasedtest() {
+    std::cout << "\n=== 段页式内存管理测试 ===\n";
+
+    SegmentDescriptor codeSegment = { 0, 5 };   // ID: 0, 5
+    SegmentDescriptor dataSegment = { 1, 3 };   // ID: 1, 3
+    SegmentDescriptor stackSegment = { 2, 4 };  // ID: 2, 4
+    SegmentDescriptor heapSegment = { 3, 4 };   // ID: 3, 4
+
+    segmentList.push_back(codeSegment);
+    segmentList.push_back(dataSegment);
+    segmentList.push_back(stackSegment);
+    segmentList.push_back(heapSegment);
+
+    std::cout << "初始化段信息：\n";
+    int totalPages = 0;
+    for (const auto& seg : segmentList) {
+        std::cout << "段 ID: " << seg.segmentId
+            << ", 页数: " << seg.totalPages << "\n";
+        totalPages += seg.totalPages;
+    }
+
+    if (totalPages > MEMORY_BLOCKS) {
+        std::cout << "总页数超过内存容量(" << MEMORY_BLOCKS << ")\n";
+        return;
+    }
+
+    // 为每个段分配内存
+    std::cout << "\n--- 开始为段分配内存 ---\n";
+    for (auto& segment : segmentList) {
+        std::cout << "为段 ID: " << segment.segmentId << " 分配内存:\n";
+        for (int i = 0; i < segment.totalPages; ++i) {
+            int physicalBlock = allocatePhysicalBlock();
+            if (physicalBlock == -1) {
+                replacePage();  // 内存不足时触发页面替换
+                physicalBlock = allocatePhysicalBlock();
+            }
+
+            if (physicalBlock != -1) {
+                // 构建虚拟页号并映射
+                int virtualPage = segment.segmentId * 100 + i;
+                memory[physicalBlock].virtualPageNumber = virtualPage;
+                memory[physicalBlock].isAllocated = true;
+
+                // 更新全局页表和段页表
+                pageTable[virtualPage] = physicalBlock;
+                segment.pageTable[i] = physicalBlock;
+
+                std::cout << "段[" << segment.segmentId
+                    << "] 的虚拟页[" << i
+                    << "] 映射到物理块[" << physicalBlock << "]\n";
+            }
+        }
+    }
+
+    // 打印当前内存状态
+    printMemoryState();
+
+    // 模拟访问段中的页面（缺页）
+    std::cout << "\n--- 模拟访问段中的页面 ---\n";
+    try {
+        char data = getData(102, 0); // 访问段1的虚拟页2
+        std::cout << "访问段1的虚拟页2成功，数据为: '" << data << "'\n";
+    }
+    catch (...) {
+        std::cout << "访问失败，发生缺页\n";
+    }
+
+    // 触发页面替换前先占满整个内存
+    std::cout << "\n--- 触发页面替换 ---\n";
+    std::cout << "正在填充内存以确保可以进行页面替换...\n";
+    for (int i = 0; i < MEMORY_BLOCKS; ++i) {
+        int virtualPage = 900 + i; // 使用新的虚拟页号，避免冲突
+        if (!allocateMemory(virtualPage)) {
+            std::cout << "填充内存失败\n";
+            break;
+        }
+    }
+
+    // 现在可以安全地调用 replacePage()
+    replacePage();
+
+    // 再次访问被替换的页面（验证是否重新加载）
+    std::cout << "\n--- 再次访问被替换的页面 ---\n";
+    try {
+        char data = getData(0, 0); // 访问段0的虚拟页0（可能已被替换）
+        std::cout << "页面已重新加载，数据为: '" << data << "'\n";
+    }
+    catch (...) {
+        std::cout << "无法加载页面\n";
+    }
+
+    // 释放段内存
+    std::cout << "\n--- 释放段内存 ---\n";
+    for (auto& segment : segmentList) {
+        std::cout << "释放段 ID: " << segment.segmentId << "\n";
+        for (const auto& entry : segment.pageTable) {
+            int virtualPage = segment.segmentId * 100 + entry.first;
+            freeMemory(virtualPage);
+        }
+    }
+
+    // 打印最终内存状态
+    printMemoryState();
+    printMemoryStatistics();
+
+    std::cout << "\n=== 段页式内存管理测试结束 ===\n";
+}
+void MemoryManager::MemoryManagerTest() {
+    int mode;
+    while (true) {
+        std::cout << "\n=== 内存管理测试 ===\n";
+        std::cout << "1. 测试基于搜索动态分配策略\n";
+        std::cout << "2. 测试基于索引动态分配策略\n";
+        std::cout << "3. 测试请求分页式分配\n";
+        std::cout << "4. 测试段页式分配\n";
+        std::cout << "请选择模式: ";
+        std::cin >> mode;
+
+        switch (mode) {
+        case 1: SearchingBasedTest(); break;
+        case 2: IndexBasedTest(); break;
+        case 3: PageBasedTest(); break;
+        case 4: SegmentBasedtest(); break;
+        default: std::cout << "无效选项，请重新" << endl;
+        }
+    }
     return;
 }
