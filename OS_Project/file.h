@@ -55,36 +55,34 @@ public:
 	void fileControl();
 	/*										*/	
 	//更改目录命令
-	void commandChangePath();
+	void commandChangePath(string);
 	//显示input下的目录中的文件，置空代表为当前文件路径
-	void commandShowPathFile();
+	void commandShowPathFile(string);
 	//在当前目录下创建一个文件夹,仅创建并写入FCB头，不分配空间
-	void commandCreatePath();
+	void commandCreatePath(string);
 	//创建文件
-	void commandCreateFile();
+	void commandCreateFile(string);
 	//删除指定的目录，该目录必须为空目录
-	void commandDeletePath();
+	void commandDeletePath(string);
 	//删除指定文件
-	void commandDeleteFile();
+	void commandDeleteFile(string);
 	//更改文件权限
-	void commandChangePermission();
+	void commandChangePermission(string);
 	//向文件写入内容
-	void commandWriteFile();
+	void commandWriteFile(string);
 	//输出文件内容
-	void commandShowFile();
+	void commandShowFile(string);
 	//模拟VIM功能
-	void commandVim();
+	void commandVim(string);
 private:
 	//记录主路径
-	string path;
+	string path;//-------------------------------可能会出问题
 	//记录当前路径下FCB内容
 	MyFCBHead* FCBList;
 	//记录当前用户名
 	string userName;
 	//记录当前用户id
 	int userId;
-	//自input中取出的命令
-	string command;
 
 	//加载主目录（文件）
 	void loadMainPath();
@@ -113,7 +111,7 @@ private:
 	User* getNewUser();
 	/*										*/
 	//查找input中第num个字符串，写入到command中
-	void findString(int);
+	string findString(int,string);
 
 	//输入文件索引所在的块号以及文件指定起始位置字符的编号与读取长度，返回读取的结果，出错返回nullptr，不足则以'\0'补充
 	char* readFileLine(int, int, int);
@@ -171,7 +169,7 @@ private:
 	void writeUser(User*);
 	/*										*/
 	//读取输入返回到output中，返回值为字符串总长度
-	void getCommand();
+	string getCommand();
 
 	//查找到第一个未使用的块，初始化并返回块号
 	int findNewBlock();
@@ -196,8 +194,6 @@ private:
 	/*										*/
 	//文件流
 	fstream ioFile;
-	//输入的命令
-	string input;
 
 	//char数组转换为string
 	string charToString(char*);

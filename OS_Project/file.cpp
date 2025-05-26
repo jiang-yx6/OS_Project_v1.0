@@ -34,6 +34,8 @@ exit:退出程序\
 
 void File::fileControl()
 {
+	string command,input,tmp_input;
+	int pos;
 	pm.startTimeSliceMonitor();
 	loadMainPath();//要求
 	cin.get();//之前中未处理的换行符，若处理后则需删除
@@ -57,48 +59,76 @@ void File::fileControl()
 			cout << "Main Process get outputMutex" << endl;
 			cout << "[" << userName << "@" << path << "]>";
 		}
-		getCommand();
-		findString(1);
+		input = getCommand();
 
-		if (!command.empty())
+		while (!input.empty())
 		{   
-			std::lock_guard<std::mutex> lock(pm.getOutputMutex());
-			if (command == "cd")pm.createProcess("cd", 1, 1, [&] {
-				std::lock_guard<std::mutex> lock(pm.getOutputMutex());
-				commandChangePath(); 
-				});
-			if (command == "ls") {
-				pm.createProcess("ls", 1, 2, [&] {
-					std::lock_guard<std::mutex> lock(pm.getOutputMutex());
-					commandShowPathFile();
-					});
-				pm.createProcess("ls", 1, 3, [&] {
-					std::lock_guard<std::mutex> lock(pm.getOutputMutex());
-					commandShowPathFile();
-					});
-				pm.createProcess("ls", 1, 1, [&] {
-					std::lock_guard<std::mutex> lock(pm.getOutputMutex());
-					commandShowPathFile();
-					});
+			pos = input.find('&');
+			if (pos == -1)
+			{
+				tmp_input = input;
+				input = "";
 			}
-			if (command == "mkdir")pm.createProcess("mkdir", 1, 1, [&] {commandCreatePath(); });
-			if (command == "rmdir")pm.createProcess("rmdir", 1, 1, [&] {commandDeletePath(); });
-			if (command == "mkfile")pm.createProcess("mkfile", 1, 1, [&] {commandCreateFile(); });
-			if (command == "rmfile")commandDeleteFile();
-			if (command == "permission")pm.createProcess("permission", 1, 1, [&] {commandChangePermission(); });
-			if (command == "echo")commandWriteFile();
-			if (command == "cat")commandShowFile();
-			if (command == "vim")commandVim();
+			else {
+				tmp_input = input.substr(0, pos);
+				input = input.substr(pos + 1);
+			}
+			command = findString(1, tmp_input);
+			std::lock_guard<std::mutex> lock(pm.getOutputMutex());
+			if (command == "cd")
+				pm.createProcess("cd", 1, 1, [=] {
+				std::lock_guard<std::mutex> lock(pm.getOutputMutex());
+				commandChangePath(tmp_input);
+				});
+			if (command == "ls")
+				pm.createProcess("ls", 1, 1, [=] {
+				std::lock_guard<std::mutex> lock(pm.getOutputMutex());
+				commandShowPathFile(tmp_input);
+				});
+			if (command == "mkdir")
+				pm.createProcess("mkdir", 1, 1, [=] {
+				std::lock_guard<std::mutex> lock(pm.getOutputMutex());
+				commandCreatePath(tmp_input);
+				});
+			if (command == "rmdir")
+				pm.createProcess("rmdir", 1, 1, [=] {
+				std::lock_guard<std::mutex> lock(pm.getOutputMutex());
+				commandDeletePath(tmp_input);
+				});
+			if (command == "mkfile")
+				pm.createProcess("mkfile", 1, 1, [=] {
+				std::lock_guard<std::mutex> lock(pm.getOutputMutex());
+				commandCreateFile(tmp_input);
+				});
+			if (command == "rmfile")
+				pm.createProcess("rmfile", 1, 1, [=] {
+				std::lock_guard<std::mutex> lock(pm.getOutputMutex());
+				commandDeleteFile(tmp_input);
+				});
+			if (command == "permission")
+				pm.createProcess("permission", 1, 1, [=] {
+				commandChangePermission(tmp_input);
+				});
+			if (command == "echo")
+				pm.createProcess("echo", 1, 1, [=] {
+				commandWriteFile(tmp_input);//注意！输入了并行命令操作符&时会出错
+				});
+			if (command == "cat")
+				pm.createProcess("cat", 1, 1, [=] {
+				commandShowFile(tmp_input);
+				});
+			if (command == "vim") commandVim(tmp_input);
 			if (command == "logout") break;
 		}
 	}
 }
 //
-void File::commandChangePath()
+void File::commandChangePath(string inner_command)
 {
 	MyFCBHead* tmp;
+	string command;
 
-	findString(2);
+	command = findString(2, inner_command);
 	if (command.empty())
 	{
 		cout << "缺少参数" << endl;
@@ -115,11 +145,12 @@ void File::commandChangePath()
 	else path = command;
 	FCBList = tmp;
 }
-void File::commandShowPathFile()
+void File::commandShowPathFile(string inner_command)
 {
 	MyFCBHead* tmp;
+	string command;
 
-	findString(2);
+	command = findString(2, inner_command);
 	if (command == "")tmp = readPathFCBFile(path);
 	else
 	{
@@ -164,9 +195,10 @@ void File::commandShowPathFile()
 		cout << endl;
 	}
 }
-void File::commandCreatePath()
+void File::commandCreatePath(string inner_command)
 {
-	findString(2);
+	string command;
+	command = findString(2, inner_command);
 	if (command.size() > 49) cout << "文件名长度过长" << endl;//-----------------------------使用固定值
 	else if (command.empty() || command == "~" || command.find('\\') != -1) cout << "文件名非法" << endl;
 	else if (FCBList->findFCB(command) != nullptr) cout << "该文件名已存在" << endl;
@@ -182,9 +214,10 @@ void File::commandCreatePath()
 	}
 
 }
-void File::commandCreateFile()
+void File::commandCreateFile(string inner_command)
 {
-	findString(2);
+	string command;
+	command = findString(2, inner_command);
 	if (command.size() > 49) cout << "文件名长度过长" << endl;//-----------------------------使用固定值
 	else if (command.empty() || command == "~" || command.find('\\') != -1) cout << "文件名非法" << endl;
 	else if (FCBList->findFCB(command) != nullptr) cout << "该文件名已存在" << endl;
@@ -200,12 +233,13 @@ void File::commandCreateFile()
 	}
 
 }
-void File::commandDeletePath()
+void File::commandDeletePath(string inner_command)
 {
 	int fileBlock;
+	string command;
 	MyFCBHead* tmp;
 
-	findString(2);
+	command = findString(2, inner_command);
 	if (command.empty()) cout << "缺少参数" << endl;
 
 	else if (command == path) cout << "不允许删除当前目录" << endl;
@@ -239,12 +273,13 @@ void File::commandDeletePath()
 		FCBList = readFCBBlocks(FCBList->getCurrentBlock());
 	}
 }
-void File::commandDeleteFile()
+void File::commandDeleteFile(string inner_command)
 {
 	int fileBlock;
+	string command;
 	MyFCBHead* tmp;
 
-	findString(2);
+	command = findString(2, inner_command);
 	if (command.empty()) cout << "缺少参数" << endl;
 
 	tmp = readPathFCB(command);
@@ -268,9 +303,10 @@ void File::commandDeleteFile()
 	writeFCBBlocks(tmp);
 	FCBList = readFCBBlocks(FCBList->getCurrentBlock());
 }
-void File::commandChangePermission()
+void File::commandChangePermission(string inner_command)
 {
-	findString(2);
+	string command;
+	command = findString(2, inner_command);
 	MyFCBHead* tmp = readPathFCB(command);
 	if (tmp == nullptr)
 	{
@@ -289,17 +325,18 @@ void File::commandChangePermission()
 	}
 	else
 	{
-		findString(3);
-		tmpFCB->setIsReadable(input[0] - '0');
-		tmpFCB->setIsWritable(input[1] - '0');
+		command = findString(3, inner_command);
+		tmpFCB->setIsReadable(command[0] - '0');
+		tmpFCB->setIsWritable(command[1] - '0');
 		writeFCBBlocks(tmp);
 	}
 }
-void File::commandWriteFile()
+void File::commandWriteFile(string inner_command)
 {
 	MyFCBHead* tmp;
+	string command;
 
-	findString(2);
+	command = findString(2, inner_command);
 	if (command.empty())
 	{
 		cout << "缺少参数" << endl;
@@ -312,28 +349,29 @@ void File::commandWriteFile()
 		return;
 	}
 
-	string::iterator pos = input.begin();
+	string::iterator pos = inner_command.begin();
 	int blockNum = tmp->firstFCB->getStorageBlock();
 
 	for (size_t i = 0; i < 2; i++)
 	{
-		while (pos != input.end() && *pos == ' ') pos++;
-		while (pos != input.end() && *pos != ' ') pos++;
+		while (pos != inner_command.end() && *pos == ' ') pos++;
+		while (pos != inner_command.end() && *pos != ' ') pos++;
 	}
-	while (pos != input.end() && *pos == ' ') pos++;
+	while (pos != inner_command.end() && *pos == ' ') pos++;
 
-	while (pos != input.end())
+	while (pos != inner_command.end())
 	{
 		addFileData(blockNum,getFileTotalLen(blockNum), *pos);
 		pos++;
 	}
 	addFileData(blockNum, getFileTotalLen(blockNum), '\n');
 }
-void File::commandShowFile()
+void File::commandShowFile(string inner_command)
 {
 	MyFCBHead* tmp;
+	string command;
 
-	findString(2);
+	command = findString(2, inner_command);
 	if (command.empty())
 	{
 		cout << "缺少参数" << endl;
@@ -348,11 +386,12 @@ void File::commandShowFile()
 	showFile(tmp->firstFCB->getStorageBlock());
 
 }
-void File::commandVim()
+void File::commandVim(string inner_command)
 {
 	MyFCBHead* tmp;
+	string command;
 
-	findString(2);
+	command = findString(2, inner_command);
 	if (command.empty())
 	{
 		cout << "缺少参数" << endl;
@@ -711,8 +750,9 @@ User* File::getNewUser()
 	return nullptr;
 }
 //
-void File::findString(int num)
+string File::findString(int num, string input)
 {
+	string command;
 	string::iterator pos = input.begin();
 	for (size_t i=0; i < num; i++)
 	{
@@ -721,6 +761,7 @@ void File::findString(int num)
 		for (; pos != input.end() && *pos != ' '; pos++) command += *pos;
 	}
 
+	return command;
 }
 
 inline char* File::readFileLine(int blockNum, int pos, int len)
@@ -877,9 +918,11 @@ inline void File::writeUser(User* input)
 	writeLine(input->toString(), 0, input->getId() * 64, 64);
 }
 //
-inline void File::getCommand()
+inline string File::getCommand()
 {
+	string input;
 	getline(cin, input);//会正常读取中文字符，处理时可能会出现问题
+	return input;
 }
 
 inline int File::findNewBlock()
