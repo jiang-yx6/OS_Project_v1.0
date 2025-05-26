@@ -111,17 +111,17 @@ void File::fileControl()
 				commandChangePermission(tmp_input);
 				});
 			if (command == "echo")
-				/*pm.createProcess("echo", 1, 1, [=] {
-				std::lock_guard<std::mutex> lock(pm.getOutputMutex());*/
+				pm.createProcess("echo", 1, 1, [=] {
+				std::lock_guard<std::mutex> lock(pm.getOutputMutex());
 				commandWriteFile(tmp_input);//注意！输入了并行命令操作符&时会出错
-				/*});*/
+				});
 			if (command == "cat")
 				pm.createProcess("cat", 1, 1, [=] {
 				std::lock_guard<std::mutex> lock(pm.getOutputMutex());
 				commandShowFile(tmp_input);
 				});
 			if (command == "vim") commandVim(tmp_input);
-			if (command == "logout") break;
+			if (command == "logout") return;
 		}
 	}
 }
@@ -296,6 +296,13 @@ void File::commandDeleteFile(string inner_command)
 		cout << "目标不是一个文件" << endl;
 		return;
 	}
+
+	if (tmp->firstFCB->getOwner() != userId)
+	{
+		cout << "无修改权限" << endl;
+		return;
+	}
+
 	fileBlock = tmp->firstFCB->getStorageBlock();
 	tmp = readFCBBlocks(tmp->getCurrentBlock());
 
@@ -317,7 +324,7 @@ void File::commandChangePermission(string inner_command)
 		return;
 	}
 	tmp = readFCBBlocks(tmp->getCurrentBlock());
-	MyFCB* tmpFCB = tmp->findFCB(command);
+	MyFCB* tmpFCB = tmp->findFCB(tmp->firstFCB->getName());
 	if (tmpFCB->getOwner() != userId)
 	{
 		cout << "无修改权限" << endl;
@@ -331,6 +338,7 @@ void File::commandChangePermission(string inner_command)
 		command = findString(3, inner_command);
 		tmpFCB->setIsReadable(command[0] - '0');
 		tmpFCB->setIsWritable(command[1] - '0');
+		tmpFCB->flashTime();
 		writeFCBBlocks(tmp);
 	}
 }
@@ -355,6 +363,12 @@ void File::commandWriteFile(string inner_command)
 	string::iterator pos = inner_command.begin();
 	int blockNum = tmp->firstFCB->getStorageBlock();
 
+	if (tmp->firstFCB->getOwner() != userId && !tmp->firstFCB->getIsWritable())
+	{
+		cout << "无修改权限" << endl;
+		return;
+	}
+
 	for (size_t i = 0; i < 2; i++)
 	{
 		while (pos != inner_command.end() && *pos == ' ') pos++;
@@ -369,7 +383,10 @@ void File::commandWriteFile(string inner_command)
 	}
 	addFileData(blockNum, getFileTotalLen(blockNum), '\n');
 
-	commandChangePath("cd " + path);
+	tmp = readPathFCB(command);
+	MyFCB* tmpFCB = tmp->findFCB(tmp->firstFCB->getName());
+	tmpFCB->flashTime();
+	writeFCBBlocks(tmp);
 }
 void File::commandShowFile(string inner_command)
 {
@@ -388,6 +405,13 @@ void File::commandShowFile(string inner_command)
 		cout << "路径不正确" << endl;
 		return;
 	}
+
+	if (tmp->firstFCB->getOwner() != userId && !tmp->firstFCB->getIsReadable())
+	{
+		cout << "无读取权限" << endl;
+		return;
+	}
+
 	showFile(tmp->firstFCB->getStorageBlock());
 
 }
@@ -409,6 +433,11 @@ void File::commandVim(string inner_command)
 		return;
 	}
 
+	if (tmp->firstFCB->getOwner() != userId)
+	{
+		cout << "无修改权限" << endl;
+		return;
+	}
 
 	int pos = 0, col = 0, row = 0;
 	int blockNum = tmp->firstFCB->getStorageBlock();
@@ -512,6 +541,11 @@ void File::commandVim(string inner_command)
 		}
 	}
 	system("cls");
+
+	tmp = readPathFCB(command);
+	MyFCB* tmpFCB = tmp->findFCB(tmp->firstFCB->getName());
+	tmpFCB->flashTime();
+	writeFCBBlocks(tmp);
 }
 void File::loadMainPath()
 {
