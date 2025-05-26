@@ -107,14 +107,17 @@ void File::fileControl()
 				});
 			if (command == "permission")
 				pm.createProcess("permission", 1, 1, [=] {
+				std::lock_guard<std::mutex> lock(pm.getOutputMutex());
 				commandChangePermission(tmp_input);
 				});
 			if (command == "echo")
-				pm.createProcess("echo", 1, 1, [=] {
+				/*pm.createProcess("echo", 1, 1, [=] {
+				std::lock_guard<std::mutex> lock(pm.getOutputMutex());*/
 				commandWriteFile(tmp_input);//注意！输入了并行命令操作符&时会出错
-				});
+				/*});*/
 			if (command == "cat")
 				pm.createProcess("cat", 1, 1, [=] {
+				std::lock_guard<std::mutex> lock(pm.getOutputMutex());
 				commandShowFile(tmp_input);
 				});
 			if (command == "vim") commandVim(tmp_input);
@@ -365,6 +368,8 @@ void File::commandWriteFile(string inner_command)
 		pos++;
 	}
 	addFileData(blockNum, getFileTotalLen(blockNum), '\n');
+
+	commandChangePath("cd " + path);
 }
 void File::commandShowFile(string inner_command)
 {
@@ -517,7 +522,7 @@ void File::loadMainPath()
 MyFCBHead* File::readPathFCB(string filePath)
 {
 	string fileName;
-	MyFCBHead* tmp = FCBList;
+	MyFCBHead* tmp = readFCBBlocks(FCBList->getCurrentBlock());
 	MyFCB* tmpFCB = nullptr;
 
 	if (filePath == "~" || filePath == "" || filePath[0] == '\\') return nullptr;
