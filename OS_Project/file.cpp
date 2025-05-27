@@ -1,10 +1,12 @@
 #include "file.h"
 
+
 File::File()
 {
 	path = "";
 	FCBList = nullptr;
 }
+
 //
 void File::loginIn()
 {
@@ -62,13 +64,13 @@ void File::fileControl()
 
 		if (!command.empty())
 		{   
-			std::lock_guard<std::mutex> lock(pm.getOutputMutex());
+			/*std::lock_guard<std::mutex> lock(pm.getOutputMutex());*/
 			if (command == "cd")pm.createProcess("cd", 1, 1, [&] {
 				std::lock_guard<std::mutex> lock(pm.getOutputMutex());
 				commandChangePath(); 
 				});
 			if (command == "ls") {
-				pm.createProcess("ls", 1, 2, [&] {
+				pm.createProcess("ls", 1, 1, [&] {
 					std::lock_guard<std::mutex> lock(pm.getOutputMutex());
 					commandShowPathFile();
 					});
@@ -93,6 +95,7 @@ void File::fileControl()
 		}
 	}
 }
+
 //
 void File::commandChangePath()
 {

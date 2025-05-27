@@ -73,6 +73,8 @@ public:
         }
     }
 
+
+
     static Logger* getInstance() {
         if (instance == nullptr) {
             std::lock_guard<std::mutex> lock(mutex);
@@ -141,6 +143,17 @@ public:
             << " 被调度执行";
         writeLog("调度", ss.str());
     }
+
+
+    void logProcessBlocked(const std::string& name, int pid) {
+        std::lock_guard<std::mutex> lock(mutex);
+        std::stringstream ss;
+        ss << "进程名称: " << name
+            << ", PID: " << pid
+            << " 被阻塞";
+        writeLog("阻塞", ss.str());
+    }
+
 
     void logError(const std::string& errorMessage) {
         std::lock_guard<std::mutex> lock(mutex);

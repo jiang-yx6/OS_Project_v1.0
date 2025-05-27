@@ -4,9 +4,11 @@
 #include<fstream>
 #include <list>
 #include <conio.h>
+#include <mutex>
 #include "MyFCB.h"
 #include "User.h"
 #include "process/process.h"
+#include "log.h"
 #define BLOCK_SIZE 4096//适配不同页大小暂时不写
 #define BLOCK_ADD_LEN 2//用于定位块的字节数
 #define FILE_NAME "storage.txt"//文件名
@@ -85,6 +87,8 @@ private:
 	int userId;
 	//自input中取出的命令
 	string command;
+
+
 
 	//加载主目录（文件）
 	void loadMainPath();
