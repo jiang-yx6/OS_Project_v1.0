@@ -187,7 +187,7 @@ public:
         //std::function<void()> task = readyToRunning->getTask();
         {
             //cout << "Producer Thread trying to get  outputMutex" << std::endl;
-            std::unique_lock<std::mutex> lock(runningQueueMutex);
+            //std::unique_lock<std::mutex> lock(runningQueueMutex);
             //cout << "Producer Thread get runningQueueMutex" << std::endl;
             noComsumed_runningProcess.emplace(readyToRunning);
             curRunningLen++;

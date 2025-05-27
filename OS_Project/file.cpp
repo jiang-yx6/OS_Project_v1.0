@@ -58,7 +58,7 @@ void File::fileControl()
 			std::lock_guard<std::mutex> lock(pm.getOutputMutex());
 			//cout << "Main Process get outputMutex" << endl;
 			cout << "[" << userName << "@" << path << "]>";
-			cout << endl;
+			//cout << endl;
 			//this_thread::sleep_for(chrono::milliseconds(1000));  // 每50毫秒检查一次
 
             //pm.getProcessInfo();
@@ -86,8 +86,8 @@ void File::fileControl()
 				});
 			if (command == "ls")
 				pm.createProcess("ls", 1, 1, [=] {
-				std::lock_guard<std::mutex> lock(pm.getOutputMutex());
-				commandShowPathFile(tmp_input);
+					std::lock_guard<std::mutex> lock(pm.getOutputMutex());
+					commandShowPathFile(tmp_input);
 				});
 			if (command == "mkdir")
 				pm.createProcess("mkdir", 1, 1, [=] {
