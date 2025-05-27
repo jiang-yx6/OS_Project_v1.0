@@ -125,6 +125,7 @@ void File::fileControl()
 				commandShowFile(tmp_input);
 				});
 			if (command == "vim") commandVim(tmp_input);
+			if (command == "ps")pm.getProcessInfo();
 			if (command == "logout") return;
 		}
 	}
