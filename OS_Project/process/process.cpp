@@ -14,7 +14,7 @@ int ProcessManager::createProcess(string name, int priority, int operaTime, std:
 
 	//std::cout << "[DEBUG] 当前 processMap 大小: " << processMap.size() << std::endl;
 	// 如果是第一个进程，直接调度执行
-	if (processMap.size() <= 2) {
+	if (processMap.size() <= thread_Pool.nums) {
 		logger->logScheduling(name, newpid);
 		dispatcher(); // 调度该进程
 	}
@@ -26,7 +26,7 @@ int ProcessManager::createProcess(string name, int priority, int operaTime, std:
 void ProcessManager::terminateProcess(int pid) {
 	PCB* process = processMap[pid];
 	process->setState(OVER);
-	historyOverMap[process->getPid()] = new RabbishPCB(process->getPid(),process->getName(),process->getState(),  process->getPriority(), process->getRemainTime());
+	historyOverMap[process->getPid()] = new RabbishPCB(process->getPid(),process->getName(),process->getState(),  process->getPriority(), process->getRemainTime(), process->getCreateTime());
 	processMap.erase(pid);
 	//delete process;
 }

@@ -11,7 +11,7 @@
 #include <functional>
 #include "../log.h"
 #include <iomanip>  // 必须包含 setw, left 等
-
+#include<ctime>
 using namespace std;
 
 const int TIME_SLICE_MS = 1000;
@@ -48,8 +48,8 @@ public:
                 callback();
                 //std::cout << "son Thread get outputMutex" << std::endl;
             }
-            this_thread::sleep_for(chrono::milliseconds(milliseconds));
-            this_thread::sleep_for(chrono::milliseconds(3000));
+            /*this_thread::sleep_for(chrono::milliseconds(milliseconds));
+            this_thread::sleep_for(chrono::milliseconds(3000));*/
 
             time_slice_expired = true;
             running = false;
@@ -80,6 +80,7 @@ public:
     int priority;
     int operaTime; //进程执行总时间
     int remainTime;
+    time_t createdTime;
     std::function<void()> task;
     Timer* scheduleTimer;
 
@@ -100,6 +101,7 @@ public:
         priority = pri;
         operaTime = opTime;
         remainTime = opTime;
+        createdTime = time(&createdTime);
         scheduleTimer = new Timer();
     }
 
@@ -110,6 +112,7 @@ public:
     Timer* getPTimer(){return scheduleTimer;}
     function<void()> getTask() { return task; }
     int getPid() const { return pid; }
+    time_t getCreateTime() {return createdTime;}
     string getName() const { return name; }
     ProcessState getState() const { return state; }
     int getPriority() const { return priority; }
@@ -134,14 +137,17 @@ public:
     ProcessState state;
     int priority;
     int remainTime;
-    
+    time_t deleteTime;
+    time_t createdTime;
 
-    RabbishPCB(int id, string pname,ProcessState state,int priority,int remainTime) {
+    RabbishPCB(int id, string pname,ProcessState state,int priority,int remainTime,time_t createdTime) {
         this->pid = id;
         this->name = pname;
         this->state = state;
         this->priority = priority;
         this->remainTime = remainTime;
+        this->createdTime = createdTime;
+        this->deleteTime = time(&deleteTime);
     }
 };
 
@@ -157,7 +163,7 @@ struct SJFComparator {
 };
 class ThreadPool {
 public:
-    int nums = 2;
+    int nums = 6;
     ThreadPool() {
         for (int i = 0; i < nums; i++) {
             threads.emplace_back([this] {
@@ -257,7 +263,10 @@ public:
             << setw(10) << left << "Name"
             << setw(10) << left << "State"
             << setw(10) << left << "Priority"
-            << setw(10) << left << "RemainTime" << std::endl;
+            << setw(20) << left << "RemainTime"
+            << setw(20) << left << "CreatedTime"
+            << setw(20) << left << "DeleteTime" << std::endl;
+
         cout << "-------------------------------------------------------------" << endl;
 
         cout << "NoOver: " << endl;
@@ -267,8 +276,10 @@ public:
                 << setw(10) << left << pair.second->name
                 << setw(10) << left << getStateStringsMy(pair.second->getState())
                 << setw(10) << left << pair.second->getPriority()
-                << setw(10) << left << pair.second->getRemainTime() << std::endl;
+                << setw(20) << left << pair.second->getRemainTime() 
+                << setw(20) << left << formatTime(pair.second->getCreateTime()) << std::endl;
         }
+
         cout << endl << endl;
         cout << "Over: " << endl;
         for (auto& pair : historyOverMap) {
@@ -276,7 +287,9 @@ public:
                 << setw(10) << left << pair.second->name
                 << setw(10) << left << getStateStringsMy(pair.second->state)
                 << setw(10) << left << pair.second->priority
-                << setw(10) << left << pair.second->remainTime << std::endl;
+                << setw(20) << left << pair.second->remainTime
+                << setw(20) << left << formatTime(pair.second->createdTime)
+                << setw(20) << left << formatTime(pair.second->deleteTime) << std::endl;
         }
     } 
 
@@ -295,6 +308,16 @@ public:
         }
     }
 
+    string formatTime(time_t time) {
+        tm* tm_local = localtime(&time);
+        int year = tm_local->tm_year + 1900;
+        int month = tm_local->tm_mon + 1;
+        int day = tm_local->tm_mday;
+        int hour = tm_local->tm_hour;
+        int minute = tm_local->tm_min;
+        int second = tm_local->tm_sec;
+        return to_string(year) + "-" + to_string(month) + "-" + to_string(day) + " " + to_string(hour) + ":" + to_string(minute) + ":" + to_string(second);
+    }
     bool hasProcesses() const {
         return !processMap.empty();
     }
@@ -336,5 +359,6 @@ public:
         processMap.clear();
     }
 };
+
 
 #endif
