@@ -56,8 +56,12 @@ void File::fileControl()
 		//pm.checkAndHandleTimeSlice();
 		{
 			std::lock_guard<std::mutex> lock(pm.getOutputMutex());
-			cout << "Main Process get outputMutex" << endl;
+			//cout << "Main Process get outputMutex" << endl;
 			cout << "[" << userName << "@" << path << "]>";
+			cout << endl;
+			//this_thread::sleep_for(chrono::milliseconds(1000));  // 每50毫秒检查一次
+
+            //pm.getProcessInfo();
 		}
 		input = getCommand();
 
@@ -112,7 +116,7 @@ void File::fileControl()
 				});
 			if (command == "echo")
 				pm.createProcess("echo", 1, 1, [=] {
-				std::lock_guard<std::mutex> lock(pm.getOutputMutex());
+				//std::lock_guard<std::mutex> lock(pm.getOutputMutex());
 				commandWriteFile(tmp_input);//注意！输入了并行命令操作符&时会出错
 				});
 			if (command == "cat")

@@ -26,9 +26,9 @@ int ProcessManager::createProcess(string name, int priority, int operaTime, std:
 void ProcessManager::terminateProcess(int pid) {
 	PCB* process = processMap[pid];
 	process->setState(OVER);
-	historyOverMap[process->getPid()] = process->getName();
+	historyOverMap[process->getPid()] = new RabbishPCB(process->getPid(),process->getName(),process->getState(),  process->getPriority(), process->getRemainTime());
 	processMap.erase(pid);
-	delete process;
+	//delete process;
 }
 
 void ProcessManager::wakeupProcess(int pid) {}
@@ -41,11 +41,11 @@ void ProcessManager::dispatcher()
 	case SchedulePolicy::PRIORITY:
 		if (!readyQueue.empty()) {
 			nextProcess = readyQueue.top();
-			cout << "1 ready Queue Size is: "<< readyQueue.size() << endl;
+			//cout << "1 ready Queue Size is: "<< readyQueue.size() << endl;
 			readyQueue.pop();
-			cout << "2 ready Queue Size is: " << readyQueue.size() << endl;
+			//cout << "2 ready Queue Size is: " << readyQueue.size() << endl;
 
-			cout << "Dispacher result: "<< nextProcess->getName() << " [" << nextProcess->getPid() << "] is got from READY queue." << std::endl;
+			//cout << "Dispacher result: "<< nextProcess->getName() << " [" << nextProcess->getPid() << "] is got from READY queue." << std::endl;
 		}
 		break;
 	case SchedulePolicy::SJF:
@@ -71,7 +71,7 @@ void ProcessManager::dispatcher()
 	}
 	
 	if (nextProcess) {
-		cout << "Process " << nextProcess->getName() << " [" << nextProcess->getPid() << "] is going to add to RUN queue." << std::endl;
+		//cout << "Process " << nextProcess->getName() << " [" << nextProcess->getPid() << "] is going to add to RUN queue." << std::endl;
 		thread_Pool.enqueue(nextProcess);
 		nextProcess->setState(RUNNING);
 		logger->logScheduling(nextProcess->getName(), nextProcess->getPid());
@@ -85,24 +85,24 @@ void ProcessManager::timeSliceExpired(int outpid)
 	PCB* outPCB = processMap[outpid];
 	if (!outPCB) { cout << "PCB NULL 1" << endl; }
 	outPCB->decrementRemainTime(); // ºı…Ÿ £”‡ ±º‰
-	cout  << "Process " << outPCB->getName() << " [" << outPCB->getPid() << "] remaining time is " <<outPCB->getRemainTime() << std::endl;
+	//cout  << "Process " << outPCB->getName() << " [" << outPCB->getPid() << "] remaining time is " <<outPCB->getRemainTime() << std::endl;
 	logger->logTimeSlice(outPCB->getName(),
 		outPCB->getPid(),
 		outPCB->getRemainTime());
 
 	if (outPCB->isFinished()) {
-		cout << "Process " << outPCB->getName() << " [" << outPCB->getPid() << "] has completed." << endl;
+		//cout << "Process " << outPCB->getName() << " [" << outPCB->getPid() << "] has completed." << endl;
 
 		logger->logProcessCompletion(outPCB->getName(),
 			outPCB->getPid());
 		outPCB->getPTimer()->stop();
 		terminateProcess(outPCB->getPid());
 
-		cout << "ProcessMap Size is: "<<processMap.size()<< endl;
+		//cout << "ProcessMap Size is: "<<processMap.size()<< endl;
 		dispatcher();
 	}
 	else{
-        cout << "Process " << outPCB->getName() << " ["<< outPCB->getPid() << "] is not over and going to READY" << std::endl;
+        //cout << "Process " << outPCB->getName() << " ["<< outPCB->getPid() << "] is not over and going to READY" << std::endl;
 		outPCB->getPTimer()->stop();
 		outPCB->setState(READY);
 
@@ -120,7 +120,7 @@ void ProcessManager::timeSliceExpired(int outpid)
 }
 bool ProcessManager::checkAndHandleTimeSlice() {
 	{
-		//std::unique_lock<std::mutex> lock(thread_Pool.runningQueueMutex);
+		std::unique_lock<std::mutex> lock(thread_Pool.runningQueueMutex);
 		int size = thread_Pool.comsumed_runningProcess.size();
 		//cout << "Checking Thread get runningQueueMutex And the size is " <<size<< std::endl;
 		for (int i = 0; i < size; i++) {
@@ -130,7 +130,7 @@ bool ProcessManager::checkAndHandleTimeSlice() {
 
 			if (schedulePCB->getPTimer()->isTimeSliceExpired()) {
 				schedulePCB->getPTimer()->resetTimeSliceFlag();
-				cout << "Process " << schedulePCB->getName() << " [" << schedulePCB->getPid() << "] has time slice expired." << std::endl;
+				//cout << "Process " << schedulePCB->getName() << " [" << schedulePCB->getPid() << "] has time slice expired." << std::endl;
 				timeSliceExpired(schedulePCB->getPid());
 				return true;
 			}
@@ -161,7 +161,7 @@ void ProcessManager::addToReadyQueue(int pid) {
 		break;
 	}
 
-	cout << "Process " << processMap[pid]->getName() << " [" << processMap[pid]->getPid() << "] is added to READY queue." << std::endl;
+	//cout << "Process " << processMap[pid]->getName() << " [" << processMap[pid]->getPid() << "] is added to READY queue." << std::endl;
 }
 
 void ProcessManager::timeSliceMonitorFunc() {

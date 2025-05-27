@@ -10,7 +10,8 @@
 #include <chrono>
 #include <functional>
 #include "../log.h"
-#include "../state.h"
+#include <iomanip>  // 必须包含 setw, left 等
+
 using namespace std;
 
 const int TIME_SLICE_MS = 1000;
@@ -45,9 +46,10 @@ public:
         {
             if (callback) {
                 callback();
-                std::cout << "son Thread get outputMutex" << std::endl;
+                //std::cout << "son Thread get outputMutex" << std::endl;
             }
             this_thread::sleep_for(chrono::milliseconds(milliseconds));
+            this_thread::sleep_for(chrono::milliseconds(3000));
 
             time_slice_expired = true;
             running = false;
@@ -124,6 +126,25 @@ public:
 
     bool isFinished() { return remainTime <= 0; }
 };
+
+class RabbishPCB {
+public:
+    int pid;
+    string name;
+    ProcessState state;
+    int priority;
+    int remainTime;
+    
+
+    RabbishPCB(int id, string pname,ProcessState state,int priority,int remainTime) {
+        this->pid = id;
+        this->name = pname;
+        this->state = state;
+        this->priority = priority;
+        this->remainTime = remainTime;
+    }
+};
+
 struct Comparator {
     bool operator()(PCB* p1, PCB* p2) {
         return p1->getPriority() > p2->getPriority(); //值越小优先级越高
@@ -145,16 +166,16 @@ public:
                     condition.wait(lock, [this] {
                         return !noComsumed_runningProcess.empty();
                         });
-                    cout<< "Consumer Thread get runningQueueMutex" << std::endl;
-                    cout << "process remain time: " << noComsumed_runningProcess.front()->getRemainTime() << std::endl;
-                    cout << "1 noComsumed Queue Size: " << noComsumed_runningProcess.size() << std::endl;
+                    //cout<< "Consumer Thread get runningQueueMutex" << std::endl;
+                    //cout << "process remain time: " << noComsumed_runningProcess.front()->getRemainTime() << std::endl;
+                    //cout << "1 noComsumed Queue Size: " << noComsumed_runningProcess.size() << std::endl;
 
                     if (noComsumed_runningProcess.empty()) return;
                     Timer* timer(noComsumed_runningProcess.front()->getPTimer());
                     comsumed_runningProcess.push(noComsumed_runningProcess.front());
-                    cout << "ComsumedQueue Queue Size: " << comsumed_runningProcess.size() << std::endl;
+                    //cout << "ComsumedQueue Queue Size: " << comsumed_runningProcess.size() << std::endl;
                     noComsumed_runningProcess.pop();
-                    cout<<"2 noComsumed Queue Size: "<< noComsumed_runningProcess.size() << std::endl;
+                    //cout<<"2 noComsumed Queue Size: "<< noComsumed_runningProcess.size() << std::endl;
                     lock.unlock();
                     timer->start(TIME_SLICE_MS);
                 }
@@ -165,9 +186,9 @@ public:
     void enqueue(PCB* readyToRunning) {
         //std::function<void()> task = readyToRunning->getTask();
         {
-            cout << "Producer Thread trying to get  outputMutex" << std::endl;
+            //cout << "Producer Thread trying to get  outputMutex" << std::endl;
             std::unique_lock<std::mutex> lock(runningQueueMutex);
-            cout << "Producer Thread get runningQueueMutex" << std::endl;
+            //cout << "Producer Thread get runningQueueMutex" << std::endl;
             noComsumed_runningProcess.emplace(readyToRunning);
             curRunningLen++;
         }
@@ -197,7 +218,7 @@ public:
 class ProcessManager {
 public:
     unordered_map<int, PCB*> processMap;
-    unordered_map<int, string> historyOverMap;
+    unordered_map<int, RabbishPCB*> historyOverMap;
 
     priority_queue<PCB*, vector<PCB*>, Comparator> readyQueue; //就绪队列
     priority_queue<PCB*, vector<PCB*>, SJFComparator> sjfQueue; // 短作业优先队列
@@ -229,6 +250,49 @@ public:
         runningProcess = nullptr;
         timeSlice = 1;
         logger = Logger::getInstance();
+    }
+
+    void getProcessInfo() {
+        cout << setw(10) << left << "PID"
+            << setw(10) << left << "Name"
+            << setw(10) << left << "State"
+            << setw(10) << left << "Priority"
+            << setw(10) << left << "RemainTime" << std::endl;
+        cout << "-------------------------------------------------------------" << endl;
+
+        cout << "NoOver: " << endl;
+
+        for (auto& pair : processMap) {
+            cout << setw(10) << left << pair.first
+                << setw(10) << left << pair.second->name
+                << setw(10) << left << getStateStringsMy(pair.second->getState())
+                << setw(10) << left << pair.second->getPriority()
+                << setw(10) << left << pair.second->getRemainTime() << std::endl;
+        }
+        cout << endl << endl;
+        cout << "Over: " << endl;
+        for (auto& pair : historyOverMap) {
+            cout << setw(10) << left << pair.first
+                << setw(10) << left << pair.second->name
+                << setw(10) << left << getStateStringsMy(pair.second->state)
+                << setw(10) << left << pair.second->priority
+                << setw(10) << left << pair.second->remainTime << std::endl;
+        }
+    } 
+
+    string getStateStringsMy(ProcessState state) {
+        switch (state) {
+        case READY:
+            return "READY";
+        case RUNNING:
+            return "RUNNING";
+        case BLOCKED:
+            return "BLOCKED";
+        case OVER:
+            return "OVER";
+        default:
+            return "UNKNOWN";
+        }
     }
 
     bool hasProcesses() const {
