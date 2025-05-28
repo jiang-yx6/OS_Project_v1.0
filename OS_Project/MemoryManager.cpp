@@ -275,7 +275,7 @@ bool MemoryManager::allocateMemory(int virtualPageNumber) {
         replacePage();
         physicalBlockNumber = allocatePhysicalBlock();
         if (physicalBlockNumber == -1) {
-            std::cout << "Memory allocation failed after page replacement.\n";
+            //std::cout << "Memory allocation failed after page replacement.\n";
             return false;
         }
     }
@@ -294,8 +294,8 @@ bool MemoryManager::allocateMemory(int virtualPageNumber) {
     // 更新物理块信息
     memory[physicalBlockNumber].virtualPageNumber = virtualPageNumber;
 
-    std::cout << "Allocated physical block " << physicalBlockNumber
-        << " to virtual page " << virtualPageNumber << "\n";
+    //std::cout << "Allocated physical block " << physicalBlockNumber
+       // << " to virtual page " << virtualPageNumber << "\n";
     return true;
 }
 
@@ -363,23 +363,23 @@ char MemoryManager::getData(int logicalBlockNumber, int offset) {
 
 
 void MemoryManager::allocatePCBmemory(string pname, int pid) {
-    std::cout << "[Memory] Allocating memory for process '" << pname << "' (PID: " << pid << ")" << std::endl;
+    //std::cout << "[Memory] Allocating memory for process '" << pname << "' (PID: " << pid << ")" << std::endl;
 
     // 假设每个进程需要一个内存块作为其运行时内存
     int virtualPage = pid;  // 使用 PID 作为虚拟页号（可扩展）
     bool success = allocateMemory(virtualPage);
 
     if (success) {
-        std::cout << "[Memory] Process '" << pname << "' allocated virtual page " << virtualPage << std::endl;
+        //std::cout << "[Memory] Process '" << pname << "' allocated virtual page " << virtualPage << std::endl;
     }
     else {
-        std::cerr << "[Memory] Failed to allocate memory for process '" << pname << "'" << std::endl;
+        //std::cerr << "[Memory] Failed to allocate memory for process '" << pname << "'" << std::endl;
     }
     return;
 }
 
 void MemoryManager::deletePCBmomory(string pname, int pid) {
-    std::cout << "[Memory] Releasing memory for process '" << pname << "' (PID: " << pid << ")" << std::endl;
+    //std::cout << "[Memory] Releasing memory for process '" << pname << "' (PID: " << pid << ")" << std::endl;
 
     int virtualPage = pid;  // 同样使用 PID 作为虚拟页号
     auto it = pageTable.find(virtualPage);
@@ -401,10 +401,10 @@ void MemoryManager::deletePCBmomory(string pname, int pid) {
         fifoQueue.erase(std::remove(fifoQueue.begin(), fifoQueue.end(), physicalBlock), fifoQueue.end());
         lruList.erase(std::remove(lruList.begin(), lruList.end(), physicalBlock), lruList.end());
 
-        std::cout << "[Memory] Memory for PID " << pid << " released." << std::endl;
+        //std::cout << "[Memory] Memory for PID " << pid << " released." << std::endl;
     }
     else {
-        std::cerr << "[Memory] No allocated memory found for PID " << pid << std::endl;
+        //std::cerr << "[Memory] No allocated memory found for PID " << pid << std::endl;
     }
     return;
 }
