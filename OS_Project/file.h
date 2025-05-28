@@ -4,6 +4,8 @@
 #include<fstream>
 #include <list>
 #include <conio.h>
+#include <sstream>
+
 #include "MyFCB.h"
 #include "User.h"
 #include "process/process.h"
@@ -74,6 +76,8 @@ public:
 	void commandShowFile(string);
 	//模拟VIM功能
 	void commandVim(string);
+
+	std::string getSecondPart(const std::string& input);
 private:
 	//记录主路径
 	string path;//-------------------------------可能会出问题

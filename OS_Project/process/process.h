@@ -10,6 +10,7 @@
 #include <chrono>
 #include <functional>
 #include "../log.h"
+#include "../FileResourceManager.h"
 #include <iomanip>  // 必须包含 setw, left 等
 #include<ctime>
 using namespace std;
@@ -48,8 +49,8 @@ public:
                 callback();
                 //std::cout << "son Thread get outputMutex" << std::endl;
             }
-            /*this_thread::sleep_for(chrono::milliseconds(milliseconds));
-            this_thread::sleep_for(chrono::milliseconds(3000));*/
+            this_thread::sleep_for(chrono::milliseconds(milliseconds));
+            //this_thread::sleep_for(chrono::milliseconds(5000));
 
             time_slice_expired = true;
             running = false;
@@ -83,6 +84,11 @@ public:
     time_t createdTime;
     std::function<void()> task;
     Timer* scheduleTimer;
+    
+
+    string currenFile;
+    bool hasFileLock = false;
+    FileResource* fileRes = nullptr; // 初始为 nullptr
 
     /*int createdTime;
     int startedTime;
@@ -94,7 +100,7 @@ public:
     vector<int> openFiles;*/
 
 public:
-    PCB(int id, string pname, int pri, int opTime) {
+    PCB(int id, string pname, int pri, int opTime, FileResource* fileRes = nullptr) {
         pid = id;
         name = pname;
         state = READY;
@@ -103,6 +109,10 @@ public:
         remainTime = opTime;
         createdTime = time(&createdTime);
         scheduleTimer = new Timer();
+        if (fileRes != nullptr) {
+            hasFileLock = true;
+            this->fileRes = fileRes;
+        }
     }
 
     void registerFunc(std::function<void()> func) {
@@ -183,6 +193,7 @@ public:
                     noComsumed_runningProcess.pop();
                     //cout<<"2 noComsumed Queue Size: "<< noComsumed_runningProcess.size() << std::endl;
                     lock.unlock();
+
                     timer->start(TIME_SLICE_MS);
                 }
                 });
@@ -229,10 +240,11 @@ public:
     priority_queue<PCB*, vector<PCB*>, Comparator> readyQueue; //就绪队列
     priority_queue<PCB*, vector<PCB*>, SJFComparator> sjfQueue; // 短作业优先队列
     queue<PCB*> fcfsQueue; // FCFS 队列
-    queue<PCB*> blockQueue; //阻塞队列
+    queue<int> blockQueue; //阻塞队列
     deque<PCB*> rrQueue;    // 时间片轮转队列
     PCB* runningProcess; //当前正在运行进程
     
+    FileResourceManager fileResourceManager;
 
     int nextPid;
     int timeSlice;
@@ -249,7 +261,7 @@ public:
 
     //线程池相关变量
     ThreadPool thread_Pool;
-
+    std::mutex blockQueueMutex;
 public:
     ProcessManager(SchedulePolicy p = SchedulePolicy::PRIORITY) : policy(p), isMonitorRunning(false) {
         nextPid = 0;
@@ -323,7 +335,7 @@ public:
     }
 
     bool checkAndHandleTimeSlice();
-    int createProcess(string name, int priority, int operaTime, std::function<void()> func);
+    int createProcess(string name, int priority, int operaTime, std::function<void()> func,string filename = "");
     void terminateProcess(int pid); //终止终端
     void wakeupProcess(int pid); //唤醒终端
     void blockProcess(int pid); //阻塞终端
@@ -338,6 +350,12 @@ public:
     void startTimeSliceMonitor();
     void stopTimeSliceMonitor();
 
+    //阻塞线程监控相关变量
+    std::thread blockMonitorThread;
+    std::atomic<bool> isBlockMonitorRunning;
+    void blockMonitorThreadFunc();
+    void startBlockMonitor();
+    void stopBlockMonitor();
 
     std::mutex& getOutputMutex() {
         return outputMutex;
@@ -345,12 +363,7 @@ public:
     // 添加析构函数到ProcessManager类
     ~ProcessManager() {
         stopTimeSliceMonitor();
-        //// 先停止定时器
-        //if (scheduleTimer) {
-        //    scheduleTimer->stop();
-        //    delete scheduleTimer;
-        //    scheduleTimer = nullptr;
-        //}
+        stopBlockMonitor();
 
         // 然后清理所有进程
         for (auto& pair : processMap) {
