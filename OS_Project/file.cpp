@@ -165,7 +165,7 @@ void File::commandChangePath(string inner_command)
 	name = findFirstFileName(&command);
 	if (name=="~")
 	{
-		path = command;
+		path = name;
 		name = findFirstFileName(&command);
 	}
 	while (!name.empty())
