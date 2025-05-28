@@ -134,7 +134,8 @@ void File::fileControl()
 void File::commandChangePath(string inner_command)
 {
 	MyFCBHead* tmp;
-	string command;
+	int pos;
+	string command,name;
 
 	command = findString(2, inner_command);
 	if (command.empty())
@@ -149,8 +150,25 @@ void File::commandChangePath(string inner_command)
 		return;
 	}
 
-	if (command[0] != '~') path = path + "\\" + command;
-	else path = command;
+	name = findFirstFileName(&command);
+	if (name=="~")
+	{
+		path = command;
+		name = findFirstFileName(&command);
+	}
+	while (!name.empty())
+	{
+		if (name == "..")
+		{
+			pos = path.rfind('\\');
+			path = path.substr(0, pos);
+		}
+		else
+		{
+			path = path + "\\" + name;
+		}
+		name = findFirstFileName(&command);
+	}
 	FCBList = tmp;
 }
 void File::commandShowPathFile(string inner_command)
@@ -579,11 +597,17 @@ MyFCBHead* File::readPathFCB(string filePath)
 			fileName = findFirstFileName(&filePath);
 			if (fileName.empty())
 			{
-				if (tmp->getCurrentBlock() == 1) break;
-				int tmpInt = tmp->getCurrentBlock();
-				tmp = readFCBBlocks(tmp->getParentBlock());
-				tmp->firstFCB = tmp->findFCB(tmpInt);
-				return tmp;
+				if (tmp->getCurrentBlock() == 1)
+				{
+					tmpFCB = new MyFCB(true, userId, "");
+					tmpFCB->setStorageBlock(1);
+				}
+				else{
+					int tmpInt = tmp->getCurrentBlock();
+					tmp = readFCBBlocks(tmp->getParentBlock());
+					tmpFCB = tmp->findFCB(tmpInt);
+				}
+				break;
 			}
 		}
 		else
