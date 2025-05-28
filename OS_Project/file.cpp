@@ -359,7 +359,7 @@ void File::commandChangePermission(string inner_command)
 		return;
 	}
 	tmp = readFCBBlocks(tmp->getCurrentBlock());
-	MyFCB* tmpFCB = tmp->findFCB(tmp->firstFCB->getName());
+	MyFCB* tmpFCB = tmp->findFCB(command);
 	if (tmpFCB->getOwner() != userId)
 	{
 		cout << "无修改权限" << endl;
@@ -371,8 +371,9 @@ void File::commandChangePermission(string inner_command)
 	else
 	{
 		command = findString(3, inner_command);
-		tmpFCB->setIsReadable(command[0] - '0');
-		tmpFCB->setIsWritable(command[1] - '0');
+		int mid = command[0] - '0';
+		tmpFCB->setIsReadable(mid / 2);
+		tmpFCB->setIsWritable(mid % 2);
 		tmpFCB->flashTime();
 		writeFCBBlocks(tmp);
 	}
@@ -417,9 +418,9 @@ void File::commandWriteFile(string inner_command)
 		pos++;
 	}
 	addFileData(blockNum, getFileTotalLen(blockNum), '\n');
-
-	tmp = readPathFCB(command);
-	MyFCB* tmpFCB = tmp->findFCB(tmp->firstFCB->getName());
+	command = tmp->firstFCB->getName();
+	tmp = readFCBBlocks(tmp->getCurrentBlock());
+	MyFCB* tmpFCB = tmp->findFCB(command);
 	tmpFCB->flashTime();
 	writeFCBBlocks(tmp);
 }
@@ -468,7 +469,7 @@ void File::commandVim(string inner_command)
 		return;
 	}
 
-	if (tmp->firstFCB->getOwner() != userId)
+	if (tmp->firstFCB->getOwner() != userId && (!tmp->firstFCB->getIsWritable() || !tmp->firstFCB->getIsReadable()))
 	{
 		cout << "无修改权限" << endl;
 		return;
@@ -577,8 +578,9 @@ void File::commandVim(string inner_command)
 	}
 	system("cls");
 
-	tmp = readPathFCB(command);
-	MyFCB* tmpFCB = tmp->findFCB(tmp->firstFCB->getName());
+	tmp = readFCBBlocks(tmp->getCurrentBlock());
+	command = tmp->firstFCB->getName();
+	MyFCB* tmpFCB = tmp->findFCB(command);
 	tmpFCB->flashTime();
 	writeFCBBlocks(tmp);
 }
