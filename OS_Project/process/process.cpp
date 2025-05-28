@@ -20,7 +20,7 @@ void Timer::start(int milliseconds) {
 
 	// 模拟 I/O 阻塞判断 (在任务执行之前)
 	if (associatedPCB && associatedPCB->isIoIntensive) {
-		if (rand() % 100 < 70) { // 30% 概率触发 I/O 阻塞
+		if (rand() % 100 < 0) { // 30% 概率触发 I/O 阻塞
 			/*Logger::getInstance()->log("进程 " + std::to_string(associatedPCB->pid) + "] " + associatedPCB->name + " 模拟 I/O 阻塞!");*/
 			cout << "[PID " << associatedPCB->pid << "] " << associatedPCB->name << " simulated I/O blocking (Timer triggered)!" << endl;
 			is_io_blocked_flag = true; // 设置I/O阻塞标志
@@ -92,20 +92,6 @@ void PCB::setState(ProcessState newState) {
 
 void PCB::decrementRemainTime() { if (remainTime > 0) remainTime--; }
 bool PCB::isFinished() { return remainTime <= 0; }
-
-
-//struct Comparator {
-//	bool operator()(PCB* p1, PCB* p2) {
-//	    return p1->getPriority() > p2->getPriority(); //值越小优先级越高
-//	}
-//};
-//struct SJFComparator {
-//	bool operator()(PCB* p1, PCB* p2) {
-//	    return p1->getRemainTime() > p2->getRemainTime();  // 剩余时间越短优先级越高
-//	}
-//};
-
-
 
 int ProcessManager::createProcess(string name, int priority, int operaTime, std::function<void()> func) {
 	int newpid = nextPid++;

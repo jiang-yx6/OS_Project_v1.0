@@ -405,7 +405,7 @@ public:
     ThreadPool thread_Pool;
 
 public:
-    ProcessManager(SchedulePolicy p = SchedulePolicy::PRIORITY) : policy(p), isMonitorRunning(false) {
+    ProcessManager(SchedulePolicy p = SchedulePolicy::SJF) : policy(p), isMonitorRunning(false) {
         nextPid = 0;
         runningProcess = nullptr;
         timeSlice = 1;

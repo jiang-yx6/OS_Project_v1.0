@@ -5,9 +5,11 @@
 #include <list>
 #include <conio.h>
 #include <mutex>
+#include <atomic> 
 #include "MyFCB.h"
 #include "User.h"
 #include "process/process.h"
+#include "global_state.h"
 #include "log.h"
 #define BLOCK_SIZE 4096//适配不同页大小暂时不写
 #define BLOCK_ADD_LEN 2//用于定位块的字节数
@@ -43,6 +45,7 @@ public:
 private:
 	ProcessManager pm;
 
+	/*bool getCommandNonBlocking();*/ // 新增
 	//以选定条件定位已加载FCB块，返回该块在list的位置
 	//int blockType;//记录当前加载的block块的类别，1：目录块，0：文件块
 	//加一个定位FCBList中文件名--locateBlock和commandDeletePath
@@ -88,6 +91,8 @@ private:
 	//自input中取出的命令
 	string command;
 
+	std::string input_buffer; // 用于存储非阻塞输入的缓冲区
+	std::mutex input_mutex;   // 用于保护 input_buffer 的互斥量
 
 
 	//加载主目录（文件）

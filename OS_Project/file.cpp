@@ -33,6 +33,78 @@ exit:退出程序\
 		else cout << "请按要求输入" << endl;
 	}
 }
+//void File::loginIn() {
+//	tryOpenFile();
+//	cout << "\
+//选择操作：\n\
+//login:登录\n\
+//show:显示所有用户\n\
+//create:创建新用户\n\
+//delete:删除用户\n\
+//exit:退出程序\
+//" << endl;
+//
+//	string input_command; // 局部变量用于接收命令
+//	while (g_is_program_running.load()) { // 检查全局终止标志
+//		cout << "请选择操作:";
+//		// 使用 getline 代替 cin >> input_command，可以读取包含空格的命令，
+//		// 并且后续的 getCommandNonBlocking 更容易集成
+//		if (!std::getline(std::cin, input_command)) {
+//			// 如果输入流有问题，也认为应该退出
+//			g_is_program_running.store(false);
+//			break;
+//		}
+//
+//		if (input_command == "login") {
+//			if (commandLogin()) {
+//				fileControl();
+//				// fileControl 返回后，继续检查是否收到终止信号
+//				if (!g_is_program_running.load()) {
+//					break; // 如果在 fileControl 期间收到 Ctrl+C，则退出 loginIn
+//				}
+//			}
+//		}
+//		else if (input_command == "show") commandShowUser();
+//		else if (input_command == "create") commandCreateUser();
+//		else if (input_command == "delete") commandDeleteUser();
+//		else if (input_command == "exit") break; // 用户主动退出，g_is_program_running 仍为 true
+//		else cout << "请按要求输入" << endl;
+//	}
+//}
+
+
+
+//bool File::getCommandNonBlocking() {
+//	std::lock_guard<std::mutex> lock(input_mutex);
+//	input_buffer.clear(); // 清空上次的输入
+//
+//	// 尝试读取一行，直到遇到换行符或用户按 Enter
+//	// 但在等待时，我们仍然要检查 g_is_program_running
+//	while (g_is_program_running.load()) {
+//		if (_kbhit()) { // 检查是否有按键按下
+//			char ch = _getch(); // 获取字符
+//			if (ch == '\r' || ch == '\n') { // 回车键表示输入结束
+//				//cout << endl; // 模拟命令行换行
+//				return true; // 输入完成
+//			}
+//			else if (ch == 8 || ch == 127) { // Backspace or Delete
+//				if (!input_buffer.empty()) {
+//					input_buffer.pop_back();
+//					cout << "\b \b"; // 模拟删除字符
+//				}
+//			}
+//			else {
+//				input_buffer += ch;
+//				cout << ch; // 回显字符
+//			}
+//		}
+//		else {
+//			// 没有按键，短暂休眠，避免忙等待，并允许其他线程运行
+//			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+//		}
+//	}
+//	return false; // 程序被终止
+//}
 
 void File::fileControl()
 {
@@ -48,6 +120,7 @@ void File::fileControl()
 5:mkfile 文件名 在当前目录下创建文件\n\
 6:permission 文件名 0~3 设置文件权限\n\
 7:logout 退出登录\n\
+8：echo 文件名 输出文本的值\n\
 注意文件路径使用\\\
 " << endl;
 
@@ -70,7 +143,7 @@ void File::fileControl()
 				commandChangePath(); 
 				});
 			if (command == "ls") {
-				pm.createProcess("ls", 1, 1, [&] {
+				pm.createProcess("ls", 1, 2, [&] {
 					std::lock_guard<std::mutex> lock(pm.getOutputMutex());
 					commandShowPathFile();
 					});
@@ -95,6 +168,93 @@ void File::fileControl()
 		}
 	}
 }
+//void File::fileControl() {
+//	pm.startTimeSliceMonitor();
+//	loadMainPath();
+//	// cin.get(); // 根据 getCommandNonBlocking 的行为，这行可能不再需要
+//
+//	cout << "\
+//操作方式：\n\
+//1:cd 路径  路径从~开始为返回主目录，否则从当前目录开始\n\
+//2:ls 路径  用法同上，但路径可置空，代表查找当前目录\n\
+//3:mkdir 文件名  在当前目录下创建文件目录\n\
+//4:rmdir用法同上\n\
+//5:mkfile 文件名 在当前目录下创建文件\n\
+//6:permission 文件名 0~3 设置文件权限\n\
+//7:logout 退出登录\n\
+//8：echo 文件名 输出文本的值\n\
+//注意文件路径使用\\\
+//" << endl;
+//
+//	while (g_is_program_running.load()) { // 检查全局终止标志
+//		this_thread::sleep_for(chrono::milliseconds(100)); // 每100毫秒检查一次
+//
+//		{ // 获取输出锁，打印提示符
+//			std::lock_guard<std::mutex> lock(pm.getOutputMutex());
+//			cout << "Main Process get outputMutex" << endl; // 调试信息
+//			cout << "[" << userName << "@" << path << "]>";
+//			std::flush(cout); // 强制刷新输出，确保提示符立即显示
+//		}
+//
+//		// 使用非阻塞方式获取命令
+//		if (!getCommandNonBlocking()) { // 如果程序被终止，退出循环
+//			break;
+//		}
+//
+//		// 获得输入后，将 input_buffer 的内容赋给 File::input 成员
+//		// 然后像原来那样调用 findString 等方法来解析
+//		{
+//			std::lock_guard<std::mutex> lock(input_mutex); // 保护 input_buffer
+//			input = input_buffer; // 将临时缓冲区的内容赋给 File::input 成员变量
+//			cout << endl; // 在用户输入结束后，模拟换行
+//		}
+//
+//		findString(1); // 解析命令
+//
+//		if (!command.empty()) {
+//			// ... (保持你原有的 createProcess 和命令处理逻辑) ...
+//			// 注意：你这里创建进程时，lambda 捕获的 `command` 是 File 类的成员变量，
+//			// 如果 `command` 在创建进程后立即被修改，可能导致旧进程的任务使用错误的数据。
+//			// 建议：将 `command` 和 `input` 作为参数传递给 lambda，或者在创建进程时立即捕获其当前值。
+//			// 例如：std::string current_command = command;
+//			// pm.createProcess("cd", 1, 1, [this, current_command]() { ... });
+//			// 但考虑到你的命令执行逻辑是阻塞的（例如 commandChangePath），
+//			// 且 ProcessManager 会在后台调度，这可能不是一个严重问题，
+//			// 但仍需注意并发访问 File 成员变量（如 path, FCBList, userId, userName）的问题。
+//
+//			if (command == "cd") pm.createProcess("cd", 1, 1, [this] {
+//				std::lock_guard<std::mutex> lock(pm.getOutputMutex());
+//				commandChangePath();
+//				});
+//			if (command == "ls") {
+//				pm.createProcess("ls", 1, 1, [this] {
+//					std::lock_guard<std::mutex> lock(pm.getOutputMutex());
+//					commandShowPathFile();
+//					});
+//				pm.createProcess("ls", 1, 3, [this] { // 多个ls任务是为了测试调度？
+//					std::lock_guard<std::mutex> lock(pm.getOutputMutex());
+//					commandShowPathFile();
+//					});
+//				pm.createProcess("ls", 1, 1, [this] {
+//					std::lock_guard<std::mutex> lock(pm.getOutputMutex());
+//					commandShowPathFile();
+//					});
+//			}
+//			if (command == "mkdir") pm.createProcess("mkdir", 1, 1, [this] { commandCreatePath(); });
+//			if (command == "rmdir") pm.createProcess("rmdir", 1, 1, [this] { commandDeletePath(); });
+//			if (command == "mkfile") pm.createProcess("mkfile", 1, 1, [this] { commandCreateFile(); });
+//			if (command == "rmfile") commandDeleteFile();
+//			if (command == "permission") pm.createProcess("permission", 1, 1, [this] { commandChangePermission(); });
+//			if (command == "echo") commandWriteFile();
+//			if (command == "cat") commandShowFile();
+//			if (command == "vim") commandVim();
+//			if (command == "logout") break; // 用户主动退出登录，g_is_program_running 仍为 true
+//		}
+//	}
+//	// 在退出 fileControl 之前，确保停止时间片监视器
+//	pm.stopTimeSliceMonitor();
+//	cout << "File Control session ended.\n";
+//}
 
 //
 void File::commandChangePath()

@@ -4,10 +4,14 @@
 #include <iostream>
 #include <thread>       // 为 this_thread 添加头文件
 #include <chrono>  
+#include <csignal>   // for std::signal
+#include <atomic>    // for std::atomic
+#include <ctime>     // for srand(time(NULL))
 #include "process/process.h"
 #include "file.h"
 #include"MemoryManager.h"
 #include"OSManager.h"
+#include "global_state.h" // 包含全局状态和信号处理
 #define TIME_QUANTUM 4
 #include <cstring>
 
@@ -106,7 +110,13 @@ void memoryTest() {
 //}
 
 int main() {
+    // 注册 SIGINT 信号处理函数
+    std::signal(SIGINT, signal_handler);
+    srand(time(NULL)); // 初始化随机数种子
     OSManager* os = new OSManager();
+
+    std::cout << "OSManager started. Press Ctrl+C to terminate.\n";
+
     os->mainControl();
     return 0;
 }
