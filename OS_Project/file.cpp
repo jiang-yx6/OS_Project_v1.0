@@ -37,6 +37,7 @@ void File::fileControl()
 	string command,input,tmp_input;
 	int pos;
 	pm.startTimeSliceMonitor();
+	pm.startBlockMonitor();
 	loadMainPath();//要求
 	cin.get();//之前中未处理的换行符，若处理后则需删除
 	cout << "\
@@ -57,7 +58,7 @@ void File::fileControl()
 		{
 			std::lock_guard<std::mutex> lock(pm.getOutputMutex());
 			//cout << "Main Process get outputMutex" << endl;
-			cout << "[" << userName << "@" << path << "]>";
+			 cout << "[" << userName << "@" << path << "]>";
 			//cout << endl;
 			//this_thread::sleep_for(chrono::milliseconds(1000));  // 每50毫秒检查一次
 
@@ -115,10 +116,11 @@ void File::fileControl()
 				commandChangePermission(tmp_input);
 				});
 			if (command == "echo")
-				pm.createProcess("echo", 1, 1, [=] {
-				//std::lock_guard<std::mutex> lock(pm.getOutputMutex());
+				pm.createProcess("echo", 1, 1,[=] {
+				//cout << "echo: " << getSecondPart(tmp_input) << endl;
+				std::lock_guard<std::mutex> lock(pm.getOutputMutex());
 				commandWriteFile(tmp_input);//注意！输入了并行命令操作符&时会出错
-				});
+				}, getSecondPart(tmp_input));
 			if (command == "cat")
 				pm.createProcess("cat", 1, 1, [=] {
 				std::lock_guard<std::mutex> lock(pm.getOutputMutex());
@@ -131,6 +133,16 @@ void File::fileControl()
 	}
 }
 //
+
+std::string File::getSecondPart(const std::string& input) {
+	std::istringstream iss(input);
+	std::string part1, part2;
+
+	iss >> part1;  // 跳过前导空格，读取第一个非空格部分
+	iss >> part2;  // 读取第二部分
+
+	return part2;
+}
 void File::commandChangePath(string inner_command)
 {
 	MyFCBHead* tmp;

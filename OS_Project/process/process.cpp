@@ -1,8 +1,15 @@
 #include"process.h"
 
-int ProcessManager::createProcess(string name, int priority, int operaTime, std::function<void()> func) {
+int ProcessManager::createProcess(string name, int priority, int operaTime, std::function<void()> func,string filename) {
 	int newpid = nextPid++;
-	PCB* newProcess = new PCB(newpid, name, priority, operaTime);
+	FileResource* fileRes = nullptr;
+
+	if(filename != ""){
+		fileRes = fileResourceManager.getFileResource(filename,newpid);
+	}
+	
+	PCB* newProcess = new PCB(newpid, name, priority, operaTime,fileRes);
+
 	newProcess->registerFunc(func);
 
 	processMap[newpid] = newProcess;
@@ -24,11 +31,14 @@ int ProcessManager::createProcess(string name, int priority, int operaTime, std:
 }
 
 void ProcessManager::terminateProcess(int pid) {
+	if(processMap[pid]->fileRes)
+		fileResourceManager.releaseFileAccess(pid, processMap[pid]->fileRes->filename); //释放文件资源
+
 	PCB* process = processMap[pid];
 	process->setState(OVER);
 	historyOverMap[process->getPid()] = new RabbishPCB(process->getPid(),process->getName(),process->getState(),  process->getPriority(), process->getRemainTime(), process->getCreateTime());
 	processMap.erase(pid);
-	//delete process;
+	delete process;
 }
 
 void ProcessManager::wakeupProcess(int pid) {}
@@ -72,8 +82,22 @@ void ProcessManager::dispatcher()
 	
 	if (nextProcess) {
 		//cout << "Process " << nextProcess->getName() << " [" << nextProcess->getPid() << "] is going to add to RUN queue." << std::endl;
-		thread_Pool.enqueue(nextProcess);
 		nextProcess->setState(RUNNING);
+		
+		if (nextProcess->fileRes) {
+			bool acquired = fileResourceManager.tryRequestFileAccess(nextProcess->getPid(), nextProcess->fileRes->filename);
+
+			//cout << " acquire："<< acquired << endl;
+			if (!acquired) {
+				std::lock_guard<std::mutex> lock(blockQueueMutex);
+				blockQueue.push(nextProcess->getPid());
+				nextProcess->setState(BLOCKED);
+				return; // 不再执行后续代码
+			}
+		}
+
+		//如果获取到文件锁，则加入运行队列
+		thread_Pool.enqueue(nextProcess);
 		logger->logScheduling(nextProcess->getName(), nextProcess->getPid());
 	}
 	else {
@@ -122,7 +146,6 @@ bool ProcessManager::checkAndHandleTimeSlice() {
 	{
 		std::unique_lock<std::mutex> lock(thread_Pool.runningQueueMutex);
 		int size = thread_Pool.comsumed_runningProcess.size();
-		//cout << "Checking Thread get runningQueueMutex And the size is " <<size<< std::endl;
 		for (int i = 0; i < size; i++) {
 			PCB* schedulePCB = thread_Pool.comsumed_runningProcess.front();
 
@@ -130,7 +153,6 @@ bool ProcessManager::checkAndHandleTimeSlice() {
 
 			if (schedulePCB->getPTimer()->isTimeSliceExpired()) {
 				schedulePCB->getPTimer()->resetTimeSliceFlag();
-				//cout << "Process " << schedulePCB->getName() << " [" << schedulePCB->getPid() << "] has time slice expired." << std::endl;
 				timeSliceExpired(schedulePCB->getPid());
 				return true;
 			}
@@ -185,11 +207,64 @@ void ProcessManager::startTimeSliceMonitor() {
 	}
 }
 
+
 void ProcessManager::stopTimeSliceMonitor() {
 	if (isMonitorRunning.load()) {
 		isMonitorRunning.store(false);
 		if (timeSliceMonitorThread.joinable()) {
 			timeSliceMonitorThread.join();
+		}
+	}
+}
+
+
+void ProcessManager::blockMonitorThreadFunc() {
+	while (isMonitorRunning.load()) {
+		std::queue<int> tempQueue;
+
+		// 遍历 blockQueue
+		while (!blockQueue.empty()) {
+			int pid = blockQueue.front();
+			blockQueue.pop();
+
+			PCB* pcb = processMap[pid];
+			if (!pcb || pcb->getState() != BLOCKED) continue;
+
+			bool acquired = fileResourceManager.tryRequestFileAccess(pcb->getPid(), pcb->fileRes->filename);
+
+			if (acquired) {
+				// 成功获取资源 → 放入就绪队列并调度
+				cout<<"Process " << pcb->getName() << " [" << pcb->getPid() << "] has acquired file lock. Successfully" << std::endl;
+				addToReadyQueue(pid);
+				pcb->setState(READY);
+				dispatcher(); // 立即调度
+			}
+			else {
+				// 仍无法获取 → 放入临时队列，稍后重新加入 blockQueue
+				tempQueue.push(pid);
+			}
+		}
+
+		// 把未被唤醒的进程重新放回 blockQueue
+		blockQueue = std::move(tempQueue);
+
+		// 休息一段时间再检查
+		std::this_thread::sleep_for(std::chrono::milliseconds(500));
+	}
+}
+
+void ProcessManager::startBlockMonitor() {
+	if (!isBlockMonitorRunning.load()) {
+		isBlockMonitorRunning.store(true);
+		blockMonitorThread = std::thread(&ProcessManager::blockMonitorThreadFunc, this);
+	}
+}
+
+void ProcessManager::stopBlockMonitor() {
+	if (isBlockMonitorRunning.load()) {
+		isBlockMonitorRunning.store(false);
+		if (blockMonitorThread.joinable()) {
+			blockMonitorThread.join();
 		}
 	}
 }
