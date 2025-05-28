@@ -6,11 +6,13 @@
 #include <deque>
 #include <vector>
 #include <list>
-#include <cstring>          
+#include <cstring> 
+#include <string>
+
 #define MAX_PAGES_PER_SEGMENT 8// 每个段的最大页数
 #define MEMORY_BLOCKS 16
 #define BLOCK_SIZE 4096
-
+using namespace std;
 class MemoryManager {
 public:
     // 页面置换算法枚举
@@ -147,7 +149,8 @@ public:
 
 
     //用于与进程管理对接
-
+    void allocatePCBmemory(string pname, int pid);
+    void deletePCBmomory(string pname, int pid);
 
 
     //基于搜索的内存测试函数

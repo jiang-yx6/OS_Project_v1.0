@@ -6,7 +6,7 @@
 #include <string>
 #include <iomanip>
 #include <fstream>
-
+using namespace std;
 // 构造函数
 MemoryManager::MemoryManager(ReplacementAlgorithm algorithm)
     : replacementAlgorithm(algorithm), memory(MEMORY_BLOCKS) {
@@ -359,6 +359,54 @@ char MemoryManager::getData(int logicalBlockNumber, int offset) {
 
     // 返回指定偏移量的数据
     return memory[physicalBlockNumber].data[offset];
+}
+
+
+void MemoryManager::allocatePCBmemory(string pname, int pid) {
+    std::cout << "[Memory] Allocating memory for process '" << pname << "' (PID: " << pid << ")" << std::endl;
+
+    // 假设每个进程需要一个内存块作为其运行时内存
+    int virtualPage = pid;  // 使用 PID 作为虚拟页号（可扩展）
+    bool success = allocateMemory(virtualPage);
+
+    if (success) {
+        std::cout << "[Memory] Process '" << pname << "' allocated virtual page " << virtualPage << std::endl;
+    }
+    else {
+        std::cerr << "[Memory] Failed to allocate memory for process '" << pname << "'" << std::endl;
+    }
+    return;
+}
+
+void MemoryManager::deletePCBmomory(string pname, int pid) {
+    std::cout << "[Memory] Releasing memory for process '" << pname << "' (PID: " << pid << ")" << std::endl;
+
+    int virtualPage = pid;  // 同样使用 PID 作为虚拟页号
+    auto it = pageTable.find(virtualPage);
+
+    if (it != pageTable.end()) {
+        int physicalBlock = it->second;
+
+        // 从页表中删除映射
+        pageTable.erase(it);
+
+        // 释放物理内存块
+        memory[physicalBlock].isAllocated = false;
+        memory[physicalBlock].virtualPageNumber = -1;
+
+        // 清空该内存块数据（可选）
+        memset(memory[physicalBlock].data, 0, BLOCK_SIZE);
+
+        // 更新 FIFO/LRU 等结构
+        fifoQueue.erase(std::remove(fifoQueue.begin(), fifoQueue.end(), physicalBlock), fifoQueue.end());
+        lruList.erase(std::remove(lruList.begin(), lruList.end(), physicalBlock), lruList.end());
+
+        std::cout << "[Memory] Memory for PID " << pid << " released." << std::endl;
+    }
+    else {
+        std::cerr << "[Memory] No allocated memory found for PID " << pid << std::endl;
+    }
+    return;
 }
 
 // 打印内存状态
@@ -1231,3 +1279,5 @@ void MemoryManager::MemoryManagerTest() {
     }
     return;
 }
+
+

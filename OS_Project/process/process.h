@@ -13,6 +13,7 @@
 #include "../FileResourceManager.h"
 #include <iomanip>  // 必须包含 setw, left 等
 #include<ctime>
+#include "../MemoryManager.h"
 using namespace std;
 
 const int TIME_SLICE_MS = 1000;
@@ -262,6 +263,9 @@ public:
     //线程池相关变量
     ThreadPool thread_Pool;
     std::mutex blockQueueMutex;
+
+
+    MemoryManager mm;
 public:
     ProcessManager(SchedulePolicy p = SchedulePolicy::PRIORITY) : policy(p), isMonitorRunning(false) {
         nextPid = 0;

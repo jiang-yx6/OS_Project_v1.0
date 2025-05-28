@@ -16,6 +16,8 @@ int ProcessManager::createProcess(string name, int priority, int operaTime, std:
 	// 根据调度策略，将新进程添加到相应的队列
 	addToReadyQueue(newpid);
 
+	mm.allocatePCBmemory(name, newpid);
+
 	// 将进程信息记录到日志
 	logger->logProcessCreation(name, newpid, priority, operaTime);
 
@@ -37,6 +39,7 @@ void ProcessManager::terminateProcess(int pid) {
 	PCB* process = processMap[pid];
 	process->setState(OVER);
 	historyOverMap[process->getPid()] = new RabbishPCB(process->getPid(),process->getName(),process->getState(),  process->getPriority(), process->getRemainTime(), process->getCreateTime());
+	mm.deletePCBmomory(process->getName(), pid);
 	processMap.erase(pid);
 	delete process;
 }
